@@ -1,0 +1,798 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Sistema de Distribuidora el Diamante (Nube)</title>
+<style>
+:root{--bg:#eef1f4;--sf:#fff;--tx:#17212b;--mu:#5c6873;--bd:#d5dbe1;--ac:#8a5a14;--tn:#f3e7d3;--ng:#b3261e;--ps:#1d6b43;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#14181d;--sf:#1c2229;--tx:#e8ecef;--mu:#98a3ad;--bd:#2f3943;--ac:#e0b36a;--tn:#2b2417;--ng:#f2837b;--ps:#6fcf97}}
+:root[data-theme="dark"]{--bg:#14181d;--sf:#1c2229;--tx:#e8ecef;--mu:#98a3ad;--bd:#2f3943;--ac:#e0b36a;--tn:#2b2417;--ng:#f2837b;--ps:#6fcf97}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.5 ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+main{max-width:980px;margin:0 auto;padding:16px}
+h1{font-size:22px;margin:4px 0 2px}
+h2{font-size:16px;margin:0 0 12px}
+.m{color:var(--mu);font-size:13px;margin:0}
+nav{display:flex;gap:4px;border-bottom:1px solid var(--bd);margin:14px 0 16px;overflow-x:auto}
+nav button{background:none;border:0;border-bottom:3px solid transparent;padding:10px 14px;font:inherit;color:var(--mu);cursor:pointer;white-space:nowrap}
+nav button.on{color:var(--tx);border-bottom-color:var(--ac);font-weight:600}
+section{background:var(--sf);border:1px solid var(--bd);border-radius:6px;padding:16px;margin-bottom:16px}
+.sc{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--bd);vertical-align:top}
+th{font-weight:600;color:var(--mu);font-size:13px}
+.r{text-align:right}.neg{color:var(--ng)}.pos{color:var(--ps)}
+.g,.g3{display:grid;gap:10px;margin-bottom:10px}
+.g{grid-template-columns:repeat(auto-fit,minmax(170px,1fr))}
+.g3{grid-template-columns:2fr 1fr 1fr}
+label{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--mu)}
+input,select{font:inherit;color:var(--tx);background:var(--bg);border:1px solid var(--bd);border-radius:6px;padding:8px 10px;width:100%}
+input:focus-visible,select:focus-visible,button:focus-visible{outline:2px solid var(--ac);outline-offset:2px}
+.b{background:var(--ac);color:var(--sf);border:0;border-radius:6px;padding:10px 16px;font:inherit;font-weight:600;cursor:pointer}
+.l{background:none;border:0;color:var(--mu);text-decoration:underline;cursor:pointer;font:inherit;font-size:13px;padding:0}
+.top{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap}
+#info{margin:4px 0 12px;padding:8px 10px;background:var(--tn);border-radius:6px;color:var(--tx)}
+.kp{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:14px}.kp div{border-left:3px solid var(--ac);padding:2px 10px}.kp b{display:block;font-size:20px;font-variant-numeric:tabular-nums}
+.nt{background:var(--tn);border-radius:6px;padding:10px 12px;margin-bottom:14px}.nt ul{margin:8px 0 0;padding-left:18px}.nt li{margin-bottom:3px}
+.bd{background:var(--ng);color:#fff;border-radius:10px;padding:1px 6px;font-size:11px;margin-left:4px;font-weight:600}
+#ask,#msg{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(16px + env(safe-area-inset-bottom,0px));max-width:min(92vw,460px);width:max-content;background:var(--sf);color:var(--tx);border:1px solid var(--ac);border-radius:6px;padding:12px 14px;z-index:9}#ask p{margin:0 0 10px}[hidden]{display:none!important}
+#mdBg{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:15;display:flex;align-items:center;justify-content:center;padding:16px}
+#mdBox{background:var(--sf);color:var(--tx);border-radius:8px;padding:18px;max-width:420px;width:100%;max-height:90vh;overflow:auto;box-shadow:0 10px 30px rgba(0,0,0,.3)}
+.pos-receipt{font-family:'Courier New',Courier,monospace;font-size:13px;max-width:320px;margin:0 auto;color:var(--tx)}
+.pos-c{text-align:center}
+.pos-mu{color:var(--mu);font-size:12px}
+.pos-hr{border-top:1px dashed var(--bd);margin:8px 0}
+.pl-row{display:flex;justify-content:space-between;gap:10px;margin:4px 0}
+.pl-row+.pl-row{margin-top:2px}
+@media print{
+ @page{size:80mm auto;margin:2mm}
+ body *{visibility:hidden}
+ #mdBox,#mdBox *{visibility:visible}
+ #mdBg{position:static;background:none;padding:0}
+ #mdBox{position:absolute;left:0;top:0;width:76mm;max-width:76mm;box-shadow:none;border:0;padding:0;background:#fff}
+ .pos-receipt{max-width:100%;font-size:11px;color:#000}
+ .pos-mu{color:#333}
+ .pos-hr{border-top:1px dashed #000}
+ #posActions{display:none!important}
+}
+</style>
+</head>
+<body>
+<main>
+<div class="top"><div><h1>Sistema de Distribuidora el Diamante</h1><p class="m">Los datos se guardan en la nube (Firebase) y se sincronizan automáticamente en todos los computadores conectados a internet.</p></div><div style="display:flex;gap:14px;flex-wrap:wrap;align-items:center"><span id="sess" class="m"></span><div id="adminTools" hidden style="display:flex;gap:14px;flex-wrap:wrap;align-items:center"><button class="l" onclick="backup()">Guardar copia de seguridad</button><label class="l" style="cursor:pointer;flex-direction:row;color:var(--mu)">Importar copia<input type="file" accept=".json,application/json" hidden onchange="restore(this.files[0]);this.value=''"></label><button class="l" onclick="reset()">Borrar todos los datos del negocio</button></div></div></div>
+<nav>
+<button data-t="inv">Inventario</button>
+<button data-t="fc">Ventas</button>
+<button data-t="in">Registrar entrada</button>
+<button data-t="out">Salidas</button>
+<button data-t="c">Conteo físico</button>
+<button data-t="f">Flujo de dinero</button>
+<button data-t="n">Nómina</button>
+<button data-t="d">Deudas</button>
+<button data-t="k">Movimientos</button>
+<button data-t="u">Usuarios</button>
+</nav>
+<div id="v"></div>
+</main>
+<div id="ask" hidden></div><div id="msg" hidden></div>
+<div id="mdBg" hidden><div id="mdBox"></div></div>
+<script type="module">
+import { initializeApp, deleteApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, EmailAuthProvider, reauthenticateWithCredential, updatePassword } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { getFirestore, collection, doc, addDoc, setDoc, updateDoc, deleteDoc, getDoc, getDocs, onSnapshot, runTransaction } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+// ====================================================================
+// PEGA AQUÍ TU CONFIGURACIÓN DE FIREBASE (Firebase Console > Configuración
+// del proyecto > tus apps > el ícono "</>" de la app web > "Config").
+// Reemplaza TODO el objeto de abajo por el que copiaste de tu proyecto.
+// ====================================================================
+const firebaseConfig = {
+  apiKey: "AIzaSyD04s1YKLuRIEghKJBcZvzpE6Mqnbp2Xuk",
+  authDomain: "distribuidora-el-diamante.firebaseapp.com",
+  projectId: "distribuidora-el-diamante",
+  storageBucket: "distribuidora-el-diamante.firebasestorage.app",
+  messagingSenderId: "348671232695",
+  appId: "1:348671232695:web:a9cb2e5ad866f4d71e1b32"
+};
+// ====================================================================
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+
+const $=s=>document.querySelector(s);
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const money=n=>n==null?'sin precio':'$'+Math.round(n).toLocaleString('es-CO');
+function msg(t){const e=$('#msg');e.textContent=t;e.hidden=false;clearTimeout(msg.h);msg.h=setTimeout(()=>{e.hidden=true},4500)}
+function ask(t,fn){const e=$('#ask');e.innerHTML=`<p>${esc(t)}</p><button class="b" id="ay">Sí, continuar</button> <button class="l" id="an">Cancelar</button>`;e.hidden=false;$('#ay').onclick=()=>{e.hidden=true;fn()};$('#an').onclick=()=>{e.hidden=true}}
+function showErr(e){console.error(e);msg('Ocurrió un error'+(e&&e.code?(' ('+e.code+')'):'')+'. '+(e&&e.message?e.message:''))}
+function toAuthEmail(u){return (u||'').trim().toLowerCase().replace(/[^a-z0-9._-]/g,'')+'@eldiamante.local'}
+
+let S={products:[],mov:[],cash:[],counts:[],inv:[],workers:[],payroll:[],debts:[],users:[],cfg:{transportAux:0,invoiceSeq:0}};
+let tab='inv';
+let session=null;
+let justSignedIn=false;
+let authReady=false;
+let cfgHasAdmin=null;
+let unsubs=[];
+
+function isAdmin(){return !!session&&session.role=='admin'}
+function allowedTabs(role){return role=='admin'?['inv','fc','in','out','c','f','n','d','k','u']:['inv','fc','in','out','d']}
+
+function detachListeners(){unsubs.forEach(u=>{try{u()}catch(e){}});unsubs=[]}
+function attachListeners(){
+ const mk=(name,setter)=>onSnapshot(collection(db,name),snap=>{setter(snap.docs.map(d=>({id:d.id,...d.data()})));render()},e=>showErr(e));
+ unsubs.push(mk('products',arr=>S.products=arr));
+ unsubs.push(mk('movements',arr=>S.mov=arr));
+ unsubs.push(mk('cash',arr=>S.cash=arr));
+ unsubs.push(mk('counts',arr=>S.counts=arr));
+ unsubs.push(mk('invoices',arr=>S.inv=arr));
+ unsubs.push(mk('workers',arr=>S.workers=arr));
+ unsubs.push(mk('payroll',arr=>S.payroll=arr));
+ unsubs.push(mk('debts',arr=>S.debts=arr));
+ if(isAdmin())unsubs.push(mk('users',arr=>S.users=arr));
+ unsubs.push(onSnapshot(doc(db,'config','main'),snap=>{S.cfg=snap.exists()?snap.data():{transportAux:0,invoiceSeq:0};render()},e=>showErr(e)));
+}
+function attachOwnProfileListener(uid){
+ unsubs.push(onSnapshot(doc(db,'users',uid),snap=>{
+  if(!snap.exists()||snap.data().active===false){msg('Tu acceso fue desactivado.');signOut(auth);return}
+  session={id:uid,email:auth.currentUser.email,...snap.data()};render()
+ },e=>{}))
+}
+let bootstrapping=false;
+onAuthStateChanged(auth,async user=>{
+ if(bootstrapping)return; // doSetupAdmin maneja su propia sesión una vez termina de escribir el perfil
+ detachListeners();
+ if(!user){session=null;authReady=true;render();return}
+ try{
+  const snap=await getDoc(doc(db,'users',user.uid));
+  if(!snap.exists()||snap.data().active===false){await signOut(auth);msg('Tu cuenta no tiene acceso o fue desactivada.');return}
+  session={id:user.uid,email:user.email,...snap.data()};
+  authReady=true;cfgHasAdmin=true;
+  attachListeners();attachOwnProfileListener(user.uid);
+  if(justSignedIn){msg(`Bienvenido, ${session.name}.`);justSignedIn=false}
+  render()
+ }catch(e){showErr(e)}
+});
+async function checkHasAdmin(){
+ try{const snap=await getDoc(doc(db,'config','main'));cfgHasAdmin=snap.exists()&&snap.data().hasAdmin===true}
+ catch(e){cfgHasAdmin=false;showErr(e)}
+ render()
+}
+
+function setupView(){
+ return `<section style="max-width:420px;margin:40px auto"><h2>Configuración inicial</h2><p class="m" style="margin-bottom:12px">Crea la cuenta del administrador principal. Desde esa cuenta podrás crear los perfiles de los vendedores.</p><div class="g" style="grid-template-columns:1fr"><label>Tu nombre<input id="suN" placeholder="Ej. Daniel Usuga"></label><label>Usuario<input id="suU" autocomplete="username"></label><label>Contraseña<input id="suP" type="password" autocomplete="new-password"></label><label>Confirmar contraseña<input id="suP2" type="password" autocomplete="new-password"></label></div><button class="b" id="suGo" style="width:100%">Crear administrador</button></section>`}
+function wireSetup(){
+ $('#suGo').onclick=doSetupAdmin;
+ ['#suN','#suU','#suP','#suP2'].forEach(s=>{$(s).onkeydown=e=>{if(e.key=='Enter')doSetupAdmin()}});
+ setTimeout(()=>{const e=$('#suN');if(e)e.focus()},0)}
+async function doSetupAdmin(){
+ const name=$('#suN').value.trim(),username=$('#suU').value.trim(),p=$('#suP').value,p2=$('#suP2').value;
+ if(!name||!username)return msg('Escribe tu nombre y un nombre de usuario.');
+ if(!p||p.length<4)return msg('Escribe una contraseña de al menos 4 caracteres.');
+ if(p!=p2)return msg('Las contraseñas no coinciden.');
+ const email=toAuthEmail(username);
+ if(email=='@eldiamante.local')return msg('Escribe un usuario válido (letras y números).');
+ bootstrapping=true;
+ try{
+  const cred=await createUserWithEmailAndPassword(auth,email,p);
+  await runTransaction(db,async tx=>{
+   const cfgRef=doc(db,'config','main');
+   const cfgSnap=await tx.get(cfgRef);
+   if(cfgSnap.exists()&&cfgSnap.data().hasAdmin===true)throw new Error('Ya existe un administrador.');
+   tx.set(doc(db,'users',cred.user.uid),{name,username,role:'admin',active:true});
+   tx.set(cfgRef,{hasAdmin:true,transportAux:(cfgSnap.exists()?cfgSnap.data().transportAux||0:0),invoiceSeq:(cfgSnap.exists()?cfgSnap.data().invoiceSeq||0:0)});
+  });
+  session={id:cred.user.uid,email,name,username,role:'admin',active:true};
+  authReady=true;cfgHasAdmin=true;
+  attachListeners();attachOwnProfileListener(cred.user.uid);
+  msg(`Cuenta de administrador creada. Bienvenido, ${name}.`);
+  render()
+ }catch(e){
+  if(e.code=='auth/email-already-in-use')msg('Ya existe un usuario con ese nombre de usuario.');
+  else{try{await signOut(auth)}catch(e2){}showErr(e)}
+ }finally{bootstrapping=false}}
+function loginView(){
+ return `<section style="max-width:380px;margin:40px auto"><h2>Iniciar sesión</h2><p class="m" style="margin-bottom:12px">Ingresa tu usuario y contraseña para entrar al sistema.</p><div class="g" style="grid-template-columns:1fr"><label>Usuario<input id="luU" autocomplete="username"></label><label>Contraseña<input id="luP" type="password" autocomplete="current-password"></label></div><button class="b" id="luGo" style="width:100%">Entrar</button></section>`}
+function wireLogin(){
+ $('#luGo').onclick=doLogin;
+ ['#luU','#luP'].forEach(s=>{$(s).onkeydown=e=>{if(e.key=='Enter')doLogin()}});
+ setTimeout(()=>{const e=$('#luU');if(e)e.focus()},0)}
+async function doLogin(){
+ const u=$('#luU').value.trim(),p=$('#luP').value;
+ if(!u||!p)return msg('Escribe tu usuario y contraseña.');
+ const email=toAuthEmail(u);
+ justSignedIn=true;
+ try{await signInWithEmailAndPassword(auth,email,p)}
+ catch(e){
+  justSignedIn=false;
+  if(['auth/invalid-credential','auth/user-not-found','auth/wrong-password'].includes(e.code))msg('Usuario o contraseña incorrectos.');
+  else showErr(e)
+ }}
+function logout(){signOut(auth)}
+function changeMyPw(){
+ openModal(`<h2 style="margin-top:0">Cambiar mi contraseña</h2><div class="g" style="grid-template-columns:1fr"><label>Contraseña actual<input id="cpOld" type="password"></label><label>Nueva contraseña<input id="cpNew" type="password"></label><label>Confirmar nueva contraseña<input id="cpNew2" type="password"></label></div><div style="display:flex;gap:10px;margin-top:12px"><button class="b" onclick="doChangeMyPw()">Guardar</button><button class="l" onclick="closeModal()">Cancelar</button></div>`);
+ setTimeout(()=>{const e=$('#cpOld');if(e)e.focus()},0)}
+async function doChangeMyPw(){
+ const old=$('#cpOld').value,nw=$('#cpNew').value,nw2=$('#cpNew2').value;
+ if(!old||!nw)return msg('Completa los dos campos.');
+ if(nw.length<4)return msg('La nueva contraseña debe tener al menos 4 caracteres.');
+ if(nw!=nw2)return msg('Las contraseñas no coinciden.');
+ try{
+  const cred=EmailAuthProvider.credential(auth.currentUser.email,old);
+  await reauthenticateWithCredential(auth.currentUser,cred);
+  await updatePassword(auth.currentUser,nw);
+  closeModal();msg('Contraseña actualizada.')
+ }catch(e){
+  if(['auth/invalid-credential','auth/wrong-password'].includes(e.code))msg('La contraseña actual no es correcta.');
+  else showErr(e)
+ }}
+
+function uView(){
+ const rows=S.users.map(u=>`<tr><td><b>${esc(u.name)}</b>${session&&session.id==u.id?' <span class="m">(tú)</span>':''}</td><td>${esc(u.username)}</td><td>${u.role=='admin'?'Administrador':'Vendedor'}</td><td>${u.active===false?'Inactivo':'Activo'}</td><td class="r"><button class="l" onclick="editUser('${u.id}')">Editar</button> <button class="l" onclick="delUser('${u.id}')">Eliminar</button></td></tr>`).join('')||'<tr><td colspan="5">Aún no hay usuarios.</td></tr>';
+ return `<section><h2>Usuarios</h2><p class="m" style="margin-bottom:10px">Crea un perfil para cada vendedor. Los vendedores solo pueden ver inventario, entradas, salidas y deudores (sin modificarlos) y tienen acceso total a Ventas. Los administradores tienen acceso completo, incluyendo Nómina y Conteo físico. El nombre de usuario no se puede cambiar después de creado; si alguien olvida su contraseña, créale una cuenta nueva y desactiva la anterior.</p><div class="sc"><table><tr><th>Nombre</th><th>Usuario</th><th>Rol</th><th>Estado</th><th></th></tr>${rows}</table></div><div class="g" style="margin-top:12px"><label>Nombre<input id="unN" placeholder="Ej. María Pérez"></label><label>Usuario<input id="unU" autocomplete="off"></label><label>Contraseña<input id="unP" type="password" autocomplete="new-password"></label><label>Rol<select id="unR"><option value="vendedor">Vendedor</option><option value="admin">Administrador</option></select></label></div><button class="b" onclick="addUser()">Crear usuario</button></section>`}
+async function addUser(){
+ if(!isAdmin())return;
+ const name=$('#unN').value.trim(),username=$('#unU').value.trim(),p=$('#unP').value,role=$('#unR').value;
+ if(!name||!username)return msg('Escribe el nombre y el usuario.');
+ if(!p||p.length<4)return msg('Escribe una contraseña de al menos 4 caracteres.');
+ const email=toAuthEmail(username);
+ if(email=='@eldiamante.local')return msg('Escribe un usuario válido (letras y números).');
+ const secApp=initializeApp(firebaseConfig,'Secondary-'+Date.now());
+ const secAuth=getAuth(secApp);
+ try{
+  const cred=await createUserWithEmailAndPassword(secAuth,email,p);
+  const uid=cred.user.uid;
+  try{await signOut(secAuth)}catch(e){}
+  await setDoc(doc(db,'users',uid),{name,username,role,active:true});
+  msg('Usuario creado.');render()
+ }catch(e){
+  if(e.code=='auth/email-already-in-use')msg('Ya existe un usuario con ese nombre de usuario.');
+  else showErr(e)
+ }finally{try{await deleteApp(secApp)}catch(e){}}}
+function editUser(id){
+ if(!isAdmin())return;
+ const u=S.users.find(x=>x.id==id);if(!u)return;
+ openModal(`<h2 style="margin-top:0">Editar usuario</h2><div class="g" style="grid-template-columns:1fr"><label>Nombre<input id="euN" value="${esc(u.name)}"></label><label>Usuario (no se puede cambiar)<input value="${esc(u.username)}" disabled></label><label>Rol<select id="euR"><option value="vendedor" ${u.role=='vendedor'?'selected':''}>Vendedor</option><option value="admin" ${u.role=='admin'?'selected':''}>Administrador</option></select></label><label style="flex-direction:row;align-items:center;gap:6px"><input type="checkbox" id="euA" style="width:auto" ${u.active!==false?'checked':''}> Cuenta activa</label></div><div style="display:flex;gap:10px;margin-top:12px"><button class="b" onclick="saveUser('${id}')">Guardar cambios</button><button class="l" onclick="closeModal()">Cancelar</button></div>`);
+ setTimeout(()=>{const e=$('#euN');if(e)e.focus()},0)}
+async function saveUser(id){
+ if(!isAdmin())return;
+ const u=S.users.find(x=>x.id==id);if(!u)return;
+ const name=$('#euN').value.trim(),role=$('#euR').value,active=$('#euA').checked;
+ if(!name)return msg('Escribe el nombre.');
+ const willStayAdmin=role=='admin'&&active,wasAdmin=u.role=='admin'&&u.active!==false;
+ if(wasAdmin&&!willStayAdmin&&!S.users.some(x=>x.id!=id&&x.role=='admin'&&x.active!==false))return msg('Debe quedar al menos un administrador activo.');
+ try{await updateDoc(doc(db,'users',id),{name,role,active});closeModal();msg('Usuario actualizado.');render()}
+ catch(e){showErr(e)}}
+function delUser(id){
+ if(!isAdmin())return;
+ const u=S.users.find(x=>x.id==id);if(!u)return;
+ if(session&&session.id==id)return msg('No puedes eliminar tu propia cuenta mientras estás conectado con ella.');
+ if(u.role=='admin'&&u.active!==false&&!S.users.some(x=>x.id!=id&&x.role=='admin'&&x.active!==false))return msg('Debe quedar al menos un administrador activo: no puedes eliminar el último.');
+ ask(`¿Eliminar el acceso del usuario "${u.name}"? Ya no podrá entrar al sistema.`,async()=>{
+  try{await deleteDoc(doc(db,'users',id));render()}catch(e){showErr(e)}})}
+
+const stock=id=>S.mov.filter(m=>m.pid==id).reduce((a,m)=>a+m.u,0);
+function fmt(p,u){let r=u,o=[];[...p.pres].sort((a,b)=>b.q-a.q).forEach(x=>{const n=Math.floor(r/x.q);if(n>0){o.push(n+' × '+esc(x.n));r-=n*x.q}});return o.join(' + ')||'0'}
+
+let iq='';
+function invRow(p){const u=stock(p.id),adm=isAdmin();
+ const costCell=adm?`<input type="number" min="0" step="any" value="${rv(ucost(p.id))}" onchange="setCost('${p.id}',this.value)" aria-label="Costo unitario" style="width:110px">`:money(ucost(p.id));
+ const priceCell=adm?`<input type="number" min="0" step="any" value="${rv(unitP(p))}" onchange="setUnitP('${p.id}',this.value)" aria-label="Precio de venta por unidad" style="width:110px">`:money(unitP(p));
+ const presCell=p.pres.map((x,i)=>x.q>1?`${esc(x.n)} (${x.q} u): ${money(x.p)}`+(adm?` <button class="l" onclick="delPres('${p.id}',${i})">quitar</button>`:''):'').filter(Boolean).join('<br>')||'Solo unidad';
+ return `<tr><td><b>${esc(p.name)}</b></td><td class="r">${u}</td><td>${fmt(p,u)}</td><td>${costCell}</td><td>${priceCell}</td><td class="m">${presCell}</td><td class="r">${adm?`<button class="l" onclick="pickP('${p.id}')">Embalar</button> <button class="l" onclick="delP('${p.id}')">Eliminar</button>`:''}</td></tr>`}
+function invRows(q){
+ const prods=[...S.products].sort((a,b)=>a.name.localeCompare(b.name,'es')).filter(p=>!q||p.name.toLowerCase().includes(q.toLowerCase()));
+ return prods.map(invRow).join('')||`<tr><td colspan="7">${q?'No hay productos que coincidan con la búsqueda.':'Aún no hay productos. Regístralos en Registrar entrada.'}</td></tr>`}
+function filterInv(){iq=$('#iqs').value;$('#iBody').innerHTML=invRows(iq)}
+function invView(){
+ return `<section><h2>Productos y stock</h2>${isAdmin()?'<p class="m" style="margin-bottom:10px">Cambia el costo unitario y el precio de venta por unidad directamente en la tabla; se guarda al salir de la casilla.</p>':''}${S.products.length?`<label style="max-width:320px;margin-bottom:10px">Buscar producto<input id="iqs" value="${esc(iq)}" oninput="filterInv()" placeholder="Escribe el nombre..." autocomplete="off"></label>`:''}<div class="sc"><table><tr><th>Producto</th><th class="r">Stock (unidades)</th><th>Desglose</th><th>Costo unitario</th><th>Precio de venta (unidad)</th><th>Embalajes</th><th></th></tr><tbody id="iBody">${invRows(iq)}</tbody></table></div></section>
+ ${isAdmin()?pricesView():''}`}
+
+function kView(){
+ const rows=[...S.mov].reverse().map(m=>{const p=S.products.find(x=>x.id==m.pid);return `<tr><td>${new Date(m.t).toLocaleString('es',{dateStyle:'short',timeStyle:'short'})}</td><td>${esc(p?p.name:(m.nm||'(eliminado)'))}</td><td>${esc(m.type)}${m.f?' · Fact. '+fno(m.f):''}</td><td>${m.pq} × ${esc(m.pn)}</td><td class="r ${m.u<0?'neg':'pos'}">${m.u>0?'+':''}${m.u}</td><td class="r">${m.tot!=null?money(m.tot):m.cost!=null?money(m.cost):''}</td></tr>`}).join('')||'<tr><td colspan="6">Aún no hay movimientos.</td></tr>';
+ return `<section><h2>Historial de movimientos</h2><p class="m" style="margin-bottom:10px">El stock se calcula siempre sumando estos movimientos.</p><div class="sc"><table><tr><th>Fecha</th><th>Producto</th><th>Tipo</th><th>Presentación</th><th class="r">Unidades</th><th class="r">Total</th></tr>${rows}</table></div></section>`}
+
+function cView(){
+ if(!S.products.length)return '<section><p>Primero agrega un producto en Inventario.</p></section>';
+ const names=[...S.products].sort((a,b)=>a.name.localeCompare(b.name,'es')).map(p=>`<option value="${esc(p.name)}">`).join('');
+ const h=[...S.counts].reverse().map(c=>{const p=S.products.find(x=>x.id==c.pid);return `<tr><td>${new Date(c.t).toLocaleString('es',{dateStyle:'short',timeStyle:'short'})}</td><td>${esc(p?p.name:(c.nm||'(eliminado)'))}</td><td class="r">${c.s} u</td><td class="r">${c.c} u</td><td class="r ${c.d<0?'neg':c.d>0?'pos':''}">${c.d>0?'+':''}${c.d} u</td></tr>`}).join('')||'<tr><td colspan="5">Aún no has hecho conteos.</td></tr>';
+ return `<section><h2>Conteo físico</h2><p class="m" style="margin-bottom:10px">Elige un producto a la vez, cuenta sus unidades totales en bodega (sin importar si están en caja, paca o sueltas) y aplica el ajuste de una sola vez. El sistema organiza el total contado según los embalajes del producto.</p><div class="g"><label>Producto<input id="cpn" list="cpl" autocomplete="off" placeholder="Escribe el nombre"><datalist id="cpl">${names}</datalist></label><label>Contado (unidades)<input id="cq" type="number" min="0"></label></div><p id="info"></p><button class="b" id="go">Aplicar ajuste</button></section><section><h2>Conteos anteriores</h2><div class="sc"><table><tr><th>Fecha</th><th>Producto</th><th class="r">En sistema</th><th class="r">Contado</th><th class="r">Diferencia</th></tr>${h}</table></div></section>`}
+function wireCount(){
+ if(!$('#cpn'))return;
+ const sel=()=>findP($('#cpn').value);
+ const upd=()=>{
+  const p=sel(),v=$('#cq').value;
+  if(!p){$('#info').textContent=$('#cpn').value.trim()?'No encuentro ese producto.':'Escribe o selecciona un producto.';return}
+  const u=stock(p.id);let t=`En sistema: ${fmt(p,u)} (${u} u)`;
+  if(v!==''){const c=Math.max(0,Math.floor(+v)),d=c-u;t+=` · Contado: ${fmt(p,c)} (${c} u) · Diferencia: ${d>0?'+':''}${d} u`}
+  $('#info').textContent=t};
+ $('#cpn').oninput=upd;$('#cq').oninput=upd;upd();
+ $('#go').onclick=()=>{
+  const p=sel();if(!p)return msg('Escribe o selecciona un producto válido.');
+  const v=$('#cq').value;if(v==='')return msg('Escribe el total contado en unidades.');
+  const c=Math.max(0,Math.floor(+v)),s=stock(p.id),d=c-s;
+  const apply=async()=>{
+   try{
+    const t=Date.now();
+    if(d!=0)await addDoc(collection(db,'movements'),{t,pid:p.id,type:'Ajuste por conteo',pn:'Unidad',pq:Math.abs(d),u:d,tot:null});
+    await addDoc(collection(db,'counts'),{t,pid:p.id,s,c,d});
+    msg(d!=0?`Ajuste aplicado a "${p.name}": ${d>0?'+':''}${d} u.`:`"${p.name}" ya estaba correcto, sin diferencia.`);render()
+   }catch(e){showErr(e)}};
+  if(d==0)apply();else ask(`El stock de "${p.name}" pasará de ${s} a ${c} unidades (${d>0?'+':''}${d} u). ¿Aplicar el ajuste?`,apply)}}
+
+function ld(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
+const R={from:ld(new Date(new Date().getFullYear(),new Date().getMonth(),1)),to:ld(new Date())};
+function cashRows(){
+ const a=new Date(R.from+'T00:00:00').getTime(),b=new Date(R.to+'T23:59:59.999').getTime(),r=[];
+ S.inv.forEach(f=>{if(f.t<a||f.t>b)return;const pay=f.pay||{cash:f.total,transfer:0,credit:0},desc=`Fact. N° ${fno(f.n)}`+(f.cl?' · '+f.cl:'');
+  if(pay.cash)r.push({t:f.t,k:'in',cat:'Ventas',txt:`${desc} (efectivo)`,a:pay.cash});
+  if(pay.transfer)r.push({t:f.t,k:'in',cat:'Ventas',txt:`${desc} (transferencia)`,a:pay.transfer})});
+ S.mov.forEach(m=>{if(m.t<a||m.t>b)return;const p=S.products.find(x=>x.id==m.pid),nm=p?p.name:(m.nm||'');
+  if(m.type=='Compra'&&m.cost!=null)r.push({t:m.t,k:'out',cat:'Compras de mercancía',txt:`${m.pq} × ${m.pn} · ${nm}`,a:m.cost})});
+ S.cash.forEach(c=>{if(c.t>=a&&c.t<=b)r.push({t:c.t,k:c.k,cat:esc(c.c),txt:c.k=='in'?'Otro ingreso':'Otro egreso',a:c.a})});
+ return r.sort((x,y)=>y.t-x.t)}
+function salesByMethod(){
+ const a=new Date(R.from+'T00:00:00').getTime(),b=new Date(R.to+'T23:59:59.999').getTime();
+ let cash=0,transfer=0,credit=0;
+ S.inv.forEach(f=>{if(f.t<a||f.t>b)return;const pay=f.pay||{cash:f.total,transfer:0,credit:0};cash+=pay.cash||0;transfer+=pay.transfer||0;credit+=pay.credit||0});
+ return{cash,transfer,credit}}
+function fView(){
+ const r=cashRows(),sum=k=>r.filter(x=>x.k==k).reduce((s,x)=>s+x.a,0),I=sum('in'),E=sum('out'),by={},sm=salesByMethod();
+ r.forEach(x=>{by[x.cat]=(by[x.cat]||0)+(x.k=='in'?x.a:-x.a)});
+ const cat=Object.entries(by).map(([c,v])=>`<tr><td>${c}</td><td class="r ${v<0?'neg':'pos'}">${money(v)}</td></tr>`).join('')||'<tr><td colspan="2">Sin movimientos de dinero en este periodo.</td></tr>';
+ const rows=r.map(x=>`<tr><td>${new Date(x.t).toLocaleDateString('es')}</td><td>${x.cat}</td><td>${esc(x.txt)}</td><td class="r ${x.k=='in'?'pos':'neg'}">${x.k=='in'?'+':'−'}${money(x.a)}</td></tr>`).join('')||'<tr><td colspan="4">Sin movimientos.</td></tr>';
+ return `<section><h2>Flujo de dinero</h2><div class="g"><label>Desde<input type="date" id="fd" value="${R.from}"></label><label>Hasta<input type="date" id="fh" value="${R.to}"></label></div><div class="kp"><div><span class="m">Entró</span><b class="pos">${money(I)}</b></div><div><span class="m">Salió</span><b class="neg">${money(E)}</b></div><div><span class="m">Balance del periodo</span><b class="${I-E<0?'neg':'pos'}">${money(I-E)}</b></div></div><p class="m" style="margin-bottom:6px">De las ventas del periodo, cuánto debió entrar por cada medio de pago:</p><div class="kp"><div><span class="m">Ventas en efectivo</span><b class="pos">${money(sm.cash)}</b></div><div><span class="m">Ventas por transferencia</span><b class="pos">${money(sm.transfer)}</b></div><div><span class="m">Ventas a crédito (pendientes)</span><b style="color:var(--ac)">${money(sm.credit)}</b></div></div><div class="sc"><table><tr><th>Concepto</th><th class="r">Neto</th></tr>${cat}</table></div></section><section><h2>Detalle del periodo</h2><div class="sc"><table><tr><th>Fecha</th><th>Categoría</th><th>Detalle</th><th class="r">Monto</th></tr>${rows}</table></div></section><section><h2>Registrar otro ingreso</h2><p class="m" style="margin-bottom:10px">Las ventas y las compras con costo entran solas, y los gastos se registran en Salidas. Aquí agrega ingresos que no sean ventas.</p><div class="g"><label>Fecha<input type="date" id="cf" value="${ld(new Date())}"></label><label>Concepto<input id="cc" placeholder="Ej. Aporte del dueño"></label><label>Monto<input id="ca" type="number" min="0"></label></div><button class="b" onclick="addCash('in')">Registrar ingreso</button></section>`}
+function wireF(){$('#fd').onchange=()=>{if($('#fd').value){R.from=$('#fd').value;render()}};$('#fh').onchange=()=>{if($('#fh').value){R.to=$('#fh').value;render()}}}
+async function addCash(k){
+ if(!isAdmin())return;
+ const c=$('#cc').value.trim(),a=+$('#ca').value,f=$('#cf').value;
+ if(!c||!(a>0)||!f)return msg('Completa fecha, concepto y un monto mayor a cero.');
+ try{await addDoc(collection(db,'cash'),{t:new Date(f+'T12:00:00').getTime(),k,c,a});render()}catch(e){showErr(e)}}
+function delCash(id){
+ if(!isAdmin())return;
+ ask('¿Eliminar esta salida?',async()=>{try{await deleteDoc(doc(db,'cash',id));render()}catch(e){showErr(e)}})}
+
+const C={cliente:'',vendor:'',lines:[],pm:'cash',pc:'',pt:'',pcr:'',pterm:''};
+function togglePay(){
+ C.pm=$('#payM').value;
+ $('#payMix').hidden=C.pm!='mix';
+ $('#payCreditNote').hidden=C.pm!='credit';
+ $('#payTermBox').hidden=!(C.pm=='credit'||C.pm=='mix');
+ updPayInfo()}
+function updPayInfo(){
+ const e=$('#payInfo');if(!e)return;
+ if(C.pm!='mix'){e.textContent='';return}
+ const tot=C.lines.reduce((a,l)=>a+l.sub,0),c=+$('#payCash').value||0,t=+$('#payTransfer').value||0,cr=+$('#payCreditAmt').value||0,rest=Math.round((tot-c-t-cr)*100)/100;
+ if(rest==0){e.textContent=`Efectivo ${money(c)} + Transferencia ${money(t)}`+(cr>0?` + Crédito ${money(cr)}`:'')+` = Total ${money(tot)}. Cuadra correctamente.`;e.className='m pos'}
+ else if(rest>0){e.textContent=`Falta distribuir ${money(rest)} del total (${money(tot)}).`;e.className='m neg'}
+ else{e.textContent=`Te pasaste por ${money(-rest)} del total (${money(tot)}).`;e.className='m neg'}}
+const fno=n=>String(n).padStart(4,'0');
+const avail=id=>stock(id)-C.lines.filter(l=>l.pid==id).reduce((a,l)=>a+l.u,0);
+function delP(id){
+ if(!isAdmin())return;
+ const p=S.products.find(x=>x.id==id);if(!p)return;
+ const u=stock(id);
+ ask(`¿Eliminar "${p.name}" de la lista?`+(u>0?` Todavía tiene ${u} unidades en stock.`:'')+' Su historial de movimientos se conserva.',async()=>{
+  try{
+   const movs=S.mov.filter(m=>m.pid==id);
+   for(const m of movs){await updateDoc(doc(db,'movements',m.id),{nm:p.name})}
+   await deleteDoc(doc(db,'products',id));
+   C.lines=C.lines.filter(l=>l.pid!=id);render()
+  }catch(e){showErr(e)}})}
+function fcView(){
+ if(!S.products.length)return '<section><p>Primero agrega un producto en Inventario.</p></section>';
+ const tot=C.lines.reduce((a,l)=>a+l.sub,0);
+ const ls=C.lines.map((l,i)=>`<tr><td>${esc(l.name)}</td><td>${l.q} × ${esc(l.pn)}</td><td class="r">${money(l.p)}</td><td class="r">${money(l.sub)}</td><td class="r"><button class="l" onclick="delLine(${i})">Quitar</button></td></tr>`).join('')||'<tr><td colspan="5">Aún no hay productos en la factura. Agrega el primero arriba.</td></tr>';
+ const h=[...S.inv].sort((a,b)=>b.n-a.n).map(f=>{const pay=f.pay||{cash:f.total,transfer:0,credit:0},payTxt=pay.credit?`Crédito (${money(pay.credit)})`:!pay.transfer?'Efectivo':!pay.cash?'Transferencia':`Mixto: ${money(pay.cash)} efec. + ${money(pay.transfer)} transf.`;return `<tr><td>${fno(f.n)}</td><td>${new Date(f.t).toLocaleDateString('es')}</td><td>${esc(f.cl||'—')}</td><td class="m">${f.items.map(l=>`${l.q} × ${esc(l.pn)} ${esc(l.name)}`).join('<br>')}</td><td>${payTxt}</td><td>${esc(f.vendor||'—')}</td><td class="r">${money(f.total)}</td><td class="r"><button class="l" onclick="printInvoice(${f.n})">Factura POS</button></td></tr>`}).join('')||'<tr><td colspan="8">Aún no has registrado ventas.</td></tr>';
+ const vdl=S.workers.map(w=>`<option value="${esc(w.name)}">`).join('');
+ return `<section><h2>Nueva factura de venta</h2><div class="g"><label>Cliente<input id="fc" value="${esc(C.cliente)}" placeholder="Nombre de quien compra"></label><label>Vendedor / trabajador que atiende<input id="fv" list="fvl" value="${esc(C.vendor)}" placeholder="Nombre del trabajador" ${isAdmin()?'':'readonly'}><datalist id="fvl">${vdl}</datalist></label></div><div class="g"><label>Producto<select id="mp">${S.products.map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join('')}</select></label><label>Presentación<select id="mpr"></select></label><label>Cantidad<input id="mq" type="number" min="1" value="1"></label><label>Precio de venta<input id="mpp" type="number" min="0"></label><label>Subtotal<input id="mst" readonly placeholder="Precio × cantidad"></label></div><div id="mnew" hidden><div class="g"><label>Nombre de la presentación<input id="mnn" placeholder="Ej. Paca"></label><label>Unidades que trae<input id="mnq" type="number" min="1"></label></div></div><p id="info"></p><button class="b" onclick="addLine()">Agregar a la factura</button></section><section><h2>Productos de la factura</h2><div class="sc"><table><tr><th>Producto</th><th>Cantidad</th><th class="r">Precio</th><th class="r">Subtotal</th><th></th></tr>${ls}<tr><td colspan="3" class="r"><b>Total</b></td><td class="r"><b>${money(tot)}</b></td><td></td></tr></table></div><div class="g" style="margin-top:12px"><label>Forma de pago<select id="payM" onchange="togglePay()"><option value="cash" ${C.pm=='cash'?'selected':''}>Efectivo</option><option value="transfer" ${C.pm=='transfer'?'selected':''}>Transferencia</option><option value="credit" ${C.pm=='credit'?'selected':''}>Crédito (el cliente paga todo después)</option><option value="mix" ${C.pm=='mix'?'selected':''}>Combinado (parte efectivo, parte transferencia y/o parte a crédito)</option></select></label></div><div id="payMix" ${C.pm=='mix'?'':'hidden'}><div class="g"><label>Monto en efectivo<input id="payCash" type="number" min="0" value="${C.pc}"></label><label>Monto en transferencia<input id="payTransfer" type="number" min="0" value="${C.pt}"></label><label>Monto a crédito<input id="payCreditAmt" type="number" min="0" value="${C.pcr}"></label></div><p id="payInfo" class="m"></p></div><div id="payCreditNote" ${C.pm=='credit'?'':'hidden'}><p class="m">El cliente quedará registrado automáticamente en Deudas como deudor por el total de esta factura. Escribe su nombre arriba, en "Cliente".</p></div><div id="payTermBox" ${(C.pm=='credit'||C.pm=='mix')?'':'hidden'}><div class="g"><label>Plazo del crédito (días, opcional)<input id="payTerm" type="number" min="0" value="${C.pterm}"></label></div><p class="m" style="margin-top:4px">Si parte del pago queda a crédito, el cliente pasará a Deudas por ese monto pendiente; escribe su nombre arriba, en "Cliente".</p></div><p style="margin-top:12px"><button class="b" onclick="issue()">Emitir factura</button></p></section><section><h2>Registro de ventas</h2><div class="sc"><table><tr><th>N°</th><th>Fecha</th><th>Cliente</th><th>Productos</th><th>Pago</th><th>Vendedor</th><th class="r">Total</th><th></th></tr>${h}</table></div></section>`}
+function wireFc(){
+ if(!$('#mp'))return;
+ $('#fc').oninput=()=>{C.cliente=$('#fc').value};
+ if(!isAdmin()){C.vendor=session.name;$('#fv').value=session.name}
+ $('#fv').oninput=()=>{C.vendor=$('#fv').value};
+ const sel=()=>S.products.find(p=>p.id==$('#mp').value);
+ const fill=()=>{$('#mpr').innerHTML=sel().pres.map((x,i)=>`<option value="${i}">${esc(x.n)} (${x.q} u)${x.p!=null?' · '+money(x.p):''}</option>`).join('')+'<option value="new">Nueva presentación…</option>'};
+ const price=()=>{const v=$('#mpr').value;$('#mnew').hidden=v!='new';$('#mpp').value=v=='new'?'':(sel().pres[v].p??'')};
+ const upd=()=>{const p=sel(),v=$('#mpr').value,q=+$('#mq').value||0,pp=$('#mpp').value,uq=v=='new'?(+$('#mnq').value||0):p.pres[v].q,uc=ucost(p.id);
+  $('#mst').value=pp!==''?money(q*pp):'';
+  $('#info').textContent=`${q} × ${v=='new'?($('#mnn').value||'presentación'):p.pres[v].n}`+(uq?` = ${q*uq} unidades`:'')+` · Stock disponible: ${avail(p.id)} u`+(uc!=null?` · Costo por unidad: ${money(uc)}`:'')};
+ $('#mp').onchange=()=>{fill();price();upd()};
+ $('#mpr').onchange=()=>{price();upd()};
+ ['#mq','#mpp','#mnn','#mnq'].forEach(k=>{$(k).oninput=upd});
+ fill();price();upd();
+ $('#payM').onchange=()=>togglePay();
+ $('#payCash').oninput=()=>{C.pc=$('#payCash').value;updPayInfo()};
+ $('#payTransfer').oninput=()=>{C.pt=$('#payTransfer').value;updPayInfo()};
+ $('#payCreditAmt').oninput=()=>{C.pcr=$('#payCreditAmt').value;updPayInfo()};
+ $('#payTerm').oninput=()=>{C.pterm=$('#payTerm').value};
+ togglePay()}
+function addLine(){
+ const p=S.products.find(x=>x.id==$('#mp').value),v=$('#mpr').value,q=Math.floor(+$('#mq').value),pp=$('#mpp').value;
+ if(!(q>0))return msg('Escribe una cantidad mayor a cero.');
+ if(pp==='')return msg('Escribe el precio de venta.');
+ let x,uq;
+ if(v=='new'){
+  const n=$('#mnn').value.trim();uq=Math.floor(+$('#mnq').value);
+  if(!n||!(uq>0))return msg('Escribe el nombre de la presentación y cuántas unidades trae.');
+  x=p.pres.find(z=>z.q==uq&&z.n.toLowerCase()==n.toLowerCase())||{n,q:uq,p:+pp};
+ }else{x=p.pres[v];uq=x.q}
+ if(q*uq>avail(p.id))return msg('Stock insuficiente: quedan '+avail(p.id)+' unidades disponibles.');
+ if(!p.pres.includes(x))p.pres.push(x);
+ if(x.p==null)x.p=+pp;
+ C.lines.push({pid:p.id,name:p.name,pn:x.n,q,u:q*uq,p:+pp,sub:q*pp});render()}
+function delLine(i){C.lines.splice(i,1);render()}
+async function issue(){
+ if(!C.lines.length)return msg('Agrega al menos un producto a la factura.');
+ for(const l of C.lines){if(stock(l.pid)<C.lines.filter(z=>z.pid==l.pid).reduce((a,z)=>a+z.u,0))return msg('Stock insuficiente de '+l.name+'.')}
+ const total=C.lines.reduce((a,l)=>a+l.sub,0),cliente=C.cliente.trim(),vendor=C.vendor.trim();
+ if(!cliente)return msg('Escribe el nombre del cliente que compró.');
+ if(!vendor)return msg('Escribe el nombre del vendedor/trabajador que atendió la venta.');
+ let pay;
+ if(C.pm=='cash')pay={cash:total,transfer:0,credit:0};
+ else if(C.pm=='transfer')pay={cash:0,transfer:total,credit:0};
+ else if(C.pm=='credit'){pay={cash:0,transfer:0,credit:total}}
+ else{
+  const c=+$('#payCash').value||0,tr=+$('#payTransfer').value||0,cr=+$('#payCreditAmt').value||0;
+  if(Math.round((c+tr+cr)*100)!=Math.round(total*100))return msg('La suma de efectivo, transferencia y crédito debe ser igual al total de la factura ('+money(total)+').');
+  if(cr>0&&!cliente)return msg('Escribe el nombre del cliente: lo necesitas para registrar la parte a crédito en Deudas.');
+  pay={cash:c,transfer:tr,credit:cr}}
+ const tv=$('#payTerm')?$('#payTerm').value:'',term=tv!==''?Math.max(0,Math.floor(+tv)):null;
+ const lines=C.lines.slice(),t=Date.now();
+ let n,okMsg=null,invObj;
+ try{
+  await runTransaction(db,async tx=>{
+   const cfgRef=doc(db,'config','main');
+   const cfgSnap=await tx.get(cfgRef);
+   const seq=(cfgSnap.exists()&&cfgSnap.data().invoiceSeq)||0;
+   n=seq+1;
+   tx.update(cfgRef,{invoiceSeq:n});
+   const invRef=doc(collection(db,'invoices'));
+   const items=lines.map(l=>({name:l.name,pn:l.pn,q:l.q,sub:l.sub}));
+   invObj={n,t,cl:cliente,vendor,items,total,pay};
+   tx.set(invRef,invObj);
+   lines.forEach(l=>{
+    const mRef=doc(collection(db,'movements'));
+    tx.set(mRef,{t,pid:l.pid,nm:l.name,type:'Venta',pn:l.pn,pq:l.q,u:-l.u,tot:l.sub,f:n})});
+   if(pay.credit>0){
+    const dRef=doc(collection(db,'debts'));
+    tx.set(dRef,{type:'r',name:cliente,amount:pay.credit,date:t,term,note:`Venta a crédito · Factura N° ${fno(n)}`,payments:[]})}
+  });
+  if(pay.credit>0)okMsg=pay.credit>=total?`Factura N° ${fno(n)} emitida. "${cliente}" quedó registrado en Deudas por ${money(total)}.`:`Factura N° ${fno(n)} emitida. "${cliente}" pagó ${money(total-pay.credit)} y quedó registrado en Deudas por ${money(pay.credit)}.`;
+  C.lines=[];C.cliente='';C.vendor='';C.pm='cash';C.pc='';C.pt='';C.pcr='';C.pterm='';
+  if(okMsg)msg(okMsg);
+  render();printInvoice(invObj)
+ }catch(e){showErr(e)}}
+function printInvoice(nOrObj){
+ const f=(typeof nOrObj=='object')?nOrObj:S.inv.find(x=>x.n==nOrObj);if(!f)return;
+ const pay=f.pay||{cash:f.total,transfer:0,credit:0},payLines=[];
+ if(pay.cash)payLines.push(`Efectivo: ${money(pay.cash)}`);
+ if(pay.transfer)payLines.push(`Transferencia: ${money(pay.transfer)}`);
+ if(pay.credit)payLines.push(`Crédito pendiente: ${money(pay.credit)}`);
+ const itemsHtml=f.items.map(l=>`<div class="pl-row"><div>${l.q} × ${esc(l.pn)}<br><span class="pos-mu">${esc(l.name)}</span></div><div class="r">${money(l.sub)}</div></div>`).join('');
+ openModal(`<div class="pos-receipt"><div class="pos-c"><b>DISTRIBUIDORA EL DIAMANTE</b></div><div class="pos-c pos-mu">Factura de venta</div><div class="pos-hr"></div><div>N° Factura: <b>${fno(f.n)}</b></div><div>Fecha: ${new Date(f.t).toLocaleString('es')}</div><div>Cliente: ${esc(f.cl||'Cliente de mostrador')}</div>${f.vendor?`<div>Atendido por: ${esc(f.vendor)}</div>`:''}<div class="pos-hr"></div>${itemsHtml}<div class="pos-hr"></div><div class="pl-row"><b>TOTAL</b><b>${money(f.total)}</b></div><div class="pos-hr"></div>${payLines.map(p=>`<div>${esc(p)}</div>`).join('')}<div class="pos-hr"></div><div class="pos-c pos-mu">¡Gracias por su compra!</div></div><div id="posActions" style="display:flex;gap:10px;margin-top:14px;justify-content:center"><button class="b" onclick="window.print()">Imprimir</button><button class="l" onclick="closeModal()">Cerrar</button></div>`)}
+
+function sView(){
+ const adm=isAdmin(),total=S.cash.filter(c=>c.k=='out').reduce((a,c)=>a+c.a,0);
+ const rows=S.cash.filter(c=>c.k=='out').slice().reverse().map(c=>`<tr><td>${new Date(c.t).toLocaleDateString('es')}</td><td>${esc(c.c)}</td><td class="r">${money(c.a)}</td>${adm?`<td class="r"><button class="l" onclick="delCash('${c.id}')">Eliminar</button></td>`:''}</tr>`).join('')||`<tr><td colspan="${adm?4:3}">Aún no has registrado salidas.</td></tr>`;
+ const form=adm?`<section><h2>Registrar salida</h2><p class="m" style="margin-bottom:10px">Para gastos que no son ventas ni compra de mercancía: bolsas, arriendo, servicios, transporte, nómina.</p><div class="g"><label>Fecha<input type="date" id="cf" value="${ld(new Date())}"></label><label>Concepto<input id="cc" placeholder="Ej. Compra de bolsas"></label><label>Monto<input id="ca" type="number" min="0"></label></div><button class="b" onclick="addCash('out')">Registrar salida</button></section>`:'';
+ return `${form}<section><h2>Registro de salidas</h2><div class="sc"><table><tr><th>Fecha</th><th>Concepto</th><th class="r">Monto</th>${adm?'<th></th>':''}</tr>${rows}<tr><td colspan="2" class="r"><b>Total</b></td><td class="r"><b>${money(total)}</b></td>${adm?'<td></td>':''}</tr></table></div></section>`}
+
+function nCfgView(){
+ return `<section><h2>Nómina</h2><p class="m">Calculadora de referencia para liquidar sueldos: salario proporcional, auxilio de transporte, horas extra y descuentos de ley. El Gobierno fija cada año el salario mínimo, el auxilio de transporte y las horas de la jornada laboral; verifica los valores vigentes antes de pagar y confirma los cálculos con tu contador si tienes dudas.</p><div class="g" style="margin-top:10px"><label>Valor mensual vigente del auxilio de transporte<input id="cfgTa" type="number" min="0" value="${S.cfg.transportAux||''}"></label></div></section>`}
+function wireNCfg(){
+ $('#cfgTa').onchange=async()=>{
+  const val=Math.max(0,+$('#cfgTa').value||0);
+  try{await setDoc(doc(db,'config','main'),{transportAux:val},{merge:true});msg('Valor del auxilio de transporte actualizado.')}
+  catch(e){showErr(e)}}}
+
+function nWorkersView(){
+ const rows=S.workers.map(w=>`<tr><td><b>${esc(w.name)}</b></td><td class="r">${money(w.salary)}</td><td>${w.transport?'Sí':'No'}</td><td>${w.hp!==false?'Sí':'No'}</td><td class="r"><button class="l" onclick="editWorker('${w.id}')">Editar</button> <button class="l" onclick="delWorker('${w.id}')">Eliminar</button></td></tr>`).join('')||'<tr><td colspan="5">Aún no hay trabajadores registrados.</td></tr>';
+ return `<section><h2>Trabajadores</h2><div class="sc"><table><tr><th>Nombre</th><th class="r">Salario mensual</th><th>Aux. transporte</th><th>Salud y pensión</th><th></th></tr>${rows}</table></div><div class="g" style="margin-top:12px"><label>Nombre<input id="wn" placeholder="Ej. Juan Pérez"></label><label>Salario mensual<input id="ws" type="number" min="0"></label></div><div class="g" style="margin-top:4px"><label style="flex-direction:row;align-items:center;gap:6px"><input type="checkbox" id="wt" style="width:auto" checked> Recibe auxilio de transporte</label><label style="flex-direction:row;align-items:center;gap:6px"><input type="checkbox" id="wh" style="width:auto" checked> Se le descuenta salud y pensión</label></div><button class="b" onclick="addWorker()">Agregar trabajador</button></section>`}
+async function addWorker(){
+ const name=$('#wn').value.trim(),sal=+$('#ws').value,tr=$('#wt').checked,hp=$('#wh').checked;
+ if(!name)return msg('Escribe el nombre del trabajador.');
+ if(!(sal>0))return msg('Escribe el salario mensual.');
+ try{await addDoc(collection(db,'workers'),{name,salary:sal,transport:tr,hp});msg('Trabajador agregado.');render()}
+ catch(e){showErr(e)}}
+function delWorker(id){
+ const w=S.workers.find(x=>x.id==id);if(!w)return;
+ ask(`¿Eliminar a "${w.name}" de los trabajadores? El historial de nómina ya liquidada se conserva.`,async()=>{
+  try{await deleteDoc(doc(db,'workers',id));render()}catch(e){showErr(e)}})}
+function editWorker(id){
+ const w=S.workers.find(x=>x.id==id);if(!w)return;
+ openModal(`<h2 style="margin-top:0">Editar trabajador</h2><div class="g"><label>Nombre<input id="ewn" value="${esc(w.name)}"></label><label>Salario mensual<input id="ews" type="number" min="0" value="${w.salary}"></label></div><div class="g" style="margin-top:4px"><label style="flex-direction:row;align-items:center;gap:6px"><input type="checkbox" id="ewt" style="width:auto" ${w.transport?'checked':''}> Recibe auxilio de transporte</label><label style="flex-direction:row;align-items:center;gap:6px"><input type="checkbox" id="ewh" style="width:auto" ${w.hp!==false?'checked':''}> Se le descuenta salud y pensión</label></div><div style="display:flex;gap:10px;margin-top:12px"><button class="b" onclick="saveWorker('${id}')">Guardar cambios</button><button class="l" onclick="closeModal()">Cancelar</button></div>`);
+ setTimeout(()=>{const e=$('#ewn');if(e)e.focus()},0)}
+async function saveWorker(id){
+ const w=S.workers.find(x=>x.id==id);if(!w)return;
+ const name=$('#ewn').value.trim(),sal=+$('#ews').value,tr=$('#ewt').checked,hp=$('#ewh').checked;
+ if(!name)return msg('Escribe el nombre del trabajador.');
+ if(!(sal>0))return msg('Escribe el salario mensual.');
+ try{await updateDoc(doc(db,'workers',id),{name,salary:sal,transport:tr,hp});closeModal();msg('Trabajador actualizado.');render()}
+ catch(e){showErr(e)}}
+
+function payCalc(){
+ const w=S.workers.find(x=>x.id==$('#lw').value);if(!w)return null;
+ const dias=Math.min(30,Math.max(0,+$('#ld').value||0)),vd=w.salary/30;
+ const sal=vd*dias,ta=(w.transport&&S.cfg.transportAux)?(S.cfg.transportAux/30)*dias:0;
+ const hp=w.hp!==false,extras=+$('#he').value||0,oi=+$('#oi').value||0,od=+$('#od').value||0,ded=hp?(+$('#ded').value||0):0;
+ const devengado=sal+ta+extras+oi,deducciones=ded+od;
+ return{w,dias,sal,ta,extras,oi,od,devengado,hp,ded,deducciones,neto:devengado-deducciones}}
+function nLiqView(){
+ if(!S.workers.length)return '<section><p>Primero agrega un trabajador arriba para poder liquidar su nómina.</p></section>';
+ return `<section><h2>Liquidar nómina</h2><div class="g"><label>Trabajador<select id="lw">${S.workers.map(w=>`<option value="${w.id}">${esc(w.name)}</option>`).join('')}</select></label><label>Periodo<input id="lp" placeholder="Ej. 1 al 15 de marzo"></label><label>Días trabajados (de 30)<input id="ld" type="number" min="0" max="30" value="30"></label></div><div class="g"><label>Horas extra (valor en dinero)<input id="he" type="number" min="0" value="0"></label><label>Otros ingresos (bonos, comisiones)<input id="oi" type="number" min="0" value="0"></label></div><div class="g"><label id="dedWrap">Salud y pensión (valor a descontar)<input id="ded" type="number" min="0" value="0"></label><label>Otros descuentos (préstamos, etc.)<input id="od" type="number" min="0" value="0"></label></div><div id="info"></div><button class="b" id="go">Liquidar y registrar pago</button></section>`}
+function wireNLiq(){
+ if(!$('#lw'))return;
+ const upd=()=>{
+  const w=S.workers.find(x=>x.id==$('#lw').value),wrap=$('#dedWrap');
+  if(wrap){if(w&&w.hp===false){wrap.hidden=true;$('#ded').value=0}else wrap.hidden=false}
+  const c=payCalc();if(!c)return;
+  $('#info').innerHTML=`Salario proporcional (${c.dias} días): <b>${money(c.sal)}</b><br>Auxilio de transporte: <b>${money(c.ta)}</b><br>Horas extra: <b>${money(c.extras)}</b><br>Otros ingresos: <b>${money(c.oi)}</b><br>Total devengado: <b>${money(c.devengado)}</b><br>Salud y pensión${c.hp?'':' — no aplica a este trabajador'}: <b class="neg">${money(c.ded)}</b><br>Otros descuentos: <b class="neg">${money(c.od)}</b><br>Neto a pagar: <b>${money(c.neto)}</b>`};
+ ['#lw','#ld','#he','#oi','#od','#ded'].forEach(s=>{const e=$(s);e.oninput=upd;e.onchange=upd});
+ upd();
+ $('#go').onclick=async()=>{
+  const c=payCalc();if(!c)return msg('Selecciona un trabajador.');
+  const period=$('#lp').value.trim();
+  try{
+   const payRef=await addDoc(collection(db,'payroll'),{t:Date.now(),workerId:c.w.id,workerName:c.w.name,period,dias:c.dias,sal:c.sal,ta:c.ta,extras:c.extras,oi:c.oi,devengado:c.devengado,ded:c.ded,od:c.od,deducciones:c.deducciones,neto:c.neto});
+   await addDoc(collection(db,'cash'),{t:Date.now(),k:'out',c:'Nómina',a:c.neto,payId:payRef.id});
+   msg('Nómina liquidada y registrada como salida en Flujo de dinero.');render()
+  }catch(e){showErr(e)}}}
+
+function nHistView(){
+ const rows=[...S.payroll].reverse().map(p=>`<tr><td>${new Date(p.t).toLocaleDateString('es')}</td><td>${esc(p.workerName)}</td><td>${esc(p.period||'—')}</td><td class="r">${money(p.devengado)}</td><td class="r neg">${money(p.deducciones)}</td><td class="r"><b>${money(p.neto)}</b></td><td class="r"><button class="l" onclick="delPayroll('${p.id}')">Eliminar</button></td></tr>`).join('')||'<tr><td colspan="7">Aún no has liquidado nóminas.</td></tr>';
+ return `<section><h2>Historial de nómina</h2><div class="sc"><table><tr><th>Fecha</th><th>Trabajador</th><th>Periodo</th><th class="r">Devengado</th><th class="r">Deducciones</th><th class="r">Neto pagado</th><th></th></tr>${rows}</table></div></section>`}
+function delPayroll(id){
+ ask('¿Eliminar este registro de nómina? También se eliminará el pago registrado en Flujo de dinero.',async()=>{
+  try{
+   const cashDocs=S.cash.filter(c=>c.payId==id);
+   for(const c of cashDocs){await deleteDoc(doc(db,'cash',c.id))}
+   await deleteDoc(doc(db,'payroll',id));render()
+  }catch(e){showErr(e)}})}
+
+function nView(){return nCfgView()+nWorkersView()+nLiqView()+nHistView()}
+function wireN(){wireNCfg();wireNLiq()}
+
+const DAY=86400000;
+function debtCalc(d){const paid=d.payments.reduce((a,p)=>a+p.amount,0);return{paid,balance:d.amount-paid}}
+function dueInfo(d){if(d.term==null)return null;const due=d.date+d.term*DAY;return{due,left:Math.ceil((due-Date.now())/DAY)}}
+function sortDebts(arr){
+ return[...arr].sort((a,b)=>{
+  const pa=debtCalc(a).balance<=0.01,pb=debtCalc(b).balance<=0.01;if(pa!=pb)return pa?1:-1;
+  const ia=dueInfo(a),ib=dueInfo(b);if(ia&&ib)return ia.left-ib.left;if(ia)return -1;if(ib)return 1;return a.date-b.date})}
+function dAlerts(){return S.debts.filter(d=>{const c=debtCalc(d),inf=dueInfo(d);return c.balance>0.01&&inf&&inf.left<=3}).sort((a,b)=>dueInfo(a).left-dueInfo(b).left)}
+function dRow(d){
+ const adm=isAdmin(),c=debtCalc(d),pagado=c.balance<=0.01,inf=dueInfo(d);let vence;
+ if(!inf)vence='<span class="m">Sin plazo</span>';
+ else{const f=new Date(inf.due).toLocaleDateString('es');
+  if(pagado)vence=`<span class="m">${f}</span>`;
+  else if(inf.left<0)vence=`<b class="neg">Venció hace ${-inf.left} día(s)</b><div class="m">${f}</div>`;
+  else if(inf.left==0)vence=`<b class="neg">Vence hoy</b><div class="m">${f}</div>`;
+  else if(inf.left<=3)vence=`<b style="color:var(--ac)">Vence en ${inf.left} día(s)</b><div class="m">${f}</div>`;
+  else vence=`En ${inf.left} días<div class="m">${f}</div>`}
+ const abonoCell=pagado?'<span class="pos">Pagado</span>':(adm?`<input type="number" min="0" max="${c.balance}" step="any" id="ab${d.id}" placeholder="Abono" style="width:90px;display:inline-block"> <button class="l" onclick="addAbono('${d.id}')">Registrar</button>`:'<span class="m">—</span>');
+ return `<tr><td><b>${esc(d.name)}</b>${d.note?`<div class="m">${esc(d.note)}</div>`:''}</td><td class="m">${new Date(d.date).toLocaleDateString('es')}</td><td>${vence}</td><td class="r">${money(d.amount)}</td><td class="r">${money(c.paid)}</td><td class="r ${pagado?'pos':'neg'}"><b>${money(c.balance)}</b></td><td class="r">${abonoCell}</td>${adm?`<td class="r"><button class="l" onclick="delDebt('${d.id}')">Eliminar</button></td>`:''}</tr>`}
+let dqR='',dqP='';
+function dRowsFiltered(type,q){
+ const arr=sortDebts(S.debts.filter(d=>d.type==type&&(!q||d.name.toLowerCase().includes(q.toLowerCase()))));
+ return arr.map(dRow).join('')||`<tr><td colspan="${isAdmin()?8:7}">${q?'No hay '+(type=='r'?'deudores':'deudas')+' que coincidan con la búsqueda.':(type=='r'?'No tienes deudores registrados.':'No tienes deudas registradas.')}</td></tr>`}
+function filterDebtsR(){dqR=$('#dqR').value;$('#dRBody').innerHTML=dRowsFiltered('r',dqR)}
+function filterDebtsP(){dqP=$('#dqP').value;$('#dPBody').innerHTML=dRowsFiltered('p',dqP)}
+function dView(){
+ const adm=isAdmin(),rsAll=S.debts.filter(d=>d.type=='r');
+ const totR=rsAll.reduce((a,d)=>a+debtCalc(d).balance,0);
+ const searchR=rsAll.length?`<label style="max-width:320px;margin-bottom:10px">Buscar deudor<input id="dqR" value="${esc(dqR)}" oninput="filterDebtsR()" placeholder="Escribe el nombre..." autocomplete="off"></label>`:'';
+ const rowsR=dRowsFiltered('r',dqR);
+ if(!adm){
+  const al=dAlerts().filter(d=>d.type=='r');
+  const alertHtml=al.length?`<div class="nt"><b>Pagos próximos o vencidos</b><ul>${al.map(d=>{const inf=dueInfo(d),c=debtCalc(d),txt=inf.left<0?`venció hace ${-inf.left} día(s)`:inf.left==0?'vence hoy':`vence en ${inf.left} día(s)`;return `<li>Te debe <b>${esc(d.name)}</b> · ${money(c.balance)} · <b class="${inf.left<=0?'neg':''}" ${inf.left>0?'style="color:var(--ac)"':''}>${txt}</b></li>`}).join('')}</ul></div>`:'';
+  return `<section><h2>Deudores (te deben)</h2>${alertHtml}<div class="kp"><div><span class="m">Total por cobrar</span><b class="pos">${money(totR)}</b></div></div><p class="m" style="margin-bottom:10px">Clientes u otras personas que te deben dinero, por ejemplo ventas fiadas o préstamos que hiciste.</p>${searchR}<div class="sc"><table><tr><th>Nombre</th><th>Fecha</th><th>Vence</th><th class="r">Monto</th><th class="r">Abonado</th><th class="r">Saldo</th><th class="r">Abono</th></tr><tbody id="dRBody">${rowsR}</tbody></table></div></section>`}
+ const psAll=S.debts.filter(d=>d.type=='p'),totP=psAll.reduce((a,d)=>a+debtCalc(d).balance,0);
+ const al=dAlerts();
+ const alertHtml=al.length?`<div class="nt"><b>Pagos próximos o vencidos</b><ul>${al.map(d=>{const inf=dueInfo(d),c=debtCalc(d),txt=inf.left<0?`venció hace ${-inf.left} día(s)`:inf.left==0?'vence hoy':`vence en ${inf.left} día(s)`;return `<li>${d.type=='r'?'Te debe':'Le debes a'} <b>${esc(d.name)}</b> · ${money(c.balance)} · <b class="${inf.left<=0?'neg':''}" ${inf.left>0?'style="color:var(--ac)"':''}>${txt}</b></li>`}).join('')}</ul></div>`:'';
+ const searchP=psAll.length?`<label style="max-width:320px;margin-bottom:10px">Buscar deuda<input id="dqP" value="${esc(dqP)}" oninput="filterDebtsP()" placeholder="Escribe el nombre..." autocomplete="off"></label>`:'';
+ const rowsP=dRowsFiltered('p',dqP);
+ const formR=`<div class="g" style="margin-top:12px"><label>Nombre<input id="rn" placeholder="Ej. Cliente o persona"></label><label>Monto<input id="ra" type="number" min="0"></label><label>Fecha<input type="date" id="rd" value="${ld(new Date())}"></label><label>Plazo del crédito (días)<input id="rt" type="number" min="0" placeholder="Ej. 30"></label><label>Motivo (opcional)<input id="rm" placeholder="Ej. Venta fiada"></label></div><button class="b" onclick="addDebt('r')">Agregar deudor</button>`;
+ const formP=`<div class="g" style="margin-top:12px"><label>A quién<input id="dn" placeholder="Ej. Proveedor"></label><label>Monto<input id="da" type="number" min="0"></label><label>Fecha<input type="date" id="dd" value="${ld(new Date())}"></label><label>Plazo del crédito (días)<input id="pt" type="number" min="0" placeholder="Ej. 30"></label><label>Motivo (opcional)<input id="dm" placeholder="Ej. Mercancía a crédito"></label></div><button class="b" onclick="addDebt('p')">Agregar deuda</button>`;
+ return `<section><h2>Deudas y deudores</h2>${alertHtml}<div class="kp"><div><span class="m">Total por cobrar</span><b class="pos">${money(totR)}</b></div><div><span class="m">Total por pagar</span><b class="neg">${money(totP)}</b></div><div><span class="m">Balance neto</span><b class="${totR-totP<0?'neg':'pos'}">${money(totR-totP)}</b></div></div></section>
+ <section><h2>Deudores (te deben)</h2><p class="m" style="margin-bottom:10px">Clientes u otras personas que te deben dinero, por ejemplo ventas fiadas o préstamos que hiciste. Escribe el plazo del crédito en días y el sistema te avisará cuando se acerque o se pase la fecha de pago. Al registrar un abono, se suma como ingreso en Flujo de dinero.</p>${searchR}<div class="sc"><table><tr><th>Nombre</th><th>Fecha</th><th>Vence</th><th class="r">Monto</th><th class="r">Abonado</th><th class="r">Saldo</th><th class="r">Abono</th><th></th></tr><tbody id="dRBody">${rowsR}</tbody></table></div>${formR}</section>
+ <section><h2>Deudas (debes)</h2><p class="m" style="margin-bottom:10px">Proveedores u otras deudas que tienes pendientes de pagar. Escribe el plazo del crédito en días y el sistema te avisará cuando se acerque o se pase la fecha de pago. Al registrar un abono, se resta como salida en Flujo de dinero.</p>${searchP}<div class="sc"><table><tr><th>A quién</th><th>Fecha</th><th>Vence</th><th class="r">Monto</th><th class="r">Abonado</th><th class="r">Saldo</th><th class="r">Abono</th><th></th></tr><tbody id="dPBody">${rowsP}</tbody></table></div>${formP}</section>`}
+async function addDebt(type){
+ if(!isAdmin())return;
+ const nm=type=='r'?'rn':'dn',am=type=='r'?'ra':'da',dt=type=='r'?'rd':'dd',tm=type=='r'?'rt':'pt',mo=type=='r'?'rm':'dm';
+ const name=$('#'+nm).value.trim(),amount=+$('#'+am).value,date=$('#'+dt).value,term=$('#'+tm).value,note=$('#'+mo).value.trim();
+ if(!name)return msg('Escribe el nombre.');
+ if(!(amount>0))return msg('Escribe un monto mayor a cero.');
+ if(!date)return msg('Escribe la fecha.');
+ try{
+  await addDoc(collection(db,'debts'),{type,name,amount,date:new Date(date+'T12:00:00').getTime(),term:term!==''?Math.max(0,Math.floor(+term)):null,note,payments:[]});
+  msg(type=='r'?'Deudor agregado.':'Deuda agregada.');render()
+ }catch(e){showErr(e)}}
+async function addAbono(id){
+ if(!isAdmin())return;
+ const d=S.debts.find(x=>x.id==id),v=$('#ab'+id)?$('#ab'+id).value:'';
+ if(!d||v==='')return msg('Escribe el monto del abono.');
+ const amt=+v,c=debtCalc(d);
+ if(!(amt>0))return msg('Escribe un monto mayor a cero.');
+ if(amt>c.balance+0.01)return msg('El abono no puede ser mayor al saldo pendiente ('+money(c.balance)+').');
+ try{
+  const dRef=doc(db,'debts',id);
+  await runTransaction(db,async tx=>{
+   const snap=await tx.get(dRef);if(!snap.exists())throw new Error('No encuentro esa deuda.');
+   const payments=snap.data().payments||[];payments.push({t:Date.now(),amount:amt});
+   tx.update(dRef,{payments})});
+  await addDoc(collection(db,'cash'),{t:Date.now(),k:d.type=='r'?'in':'out',c:d.type=='r'?'Cobro de deuda':'Pago de deuda',a:amt,debtId:id});
+  msg('Abono registrado.');render()
+ }catch(e){showErr(e)}}
+function delDebt(id){
+ if(!isAdmin())return;
+ const d=S.debts.find(x=>x.id==id);if(!d)return;
+ ask(`¿Eliminar a "${d.name}" de ${d.type=='r'?'deudores':'deudas'}? También se eliminarán sus abonos registrados en Flujo de dinero.`,async()=>{
+  try{
+   const cashDocs=S.cash.filter(c=>c.debtId==id);
+   for(const c of cashDocs){await deleteDoc(doc(db,'cash',c.id))}
+   await deleteDoc(doc(db,'debts',id));render()
+  }catch(e){showErr(e)}})}
+
+function backup(){
+ if(!isAdmin())return;
+ const b=new Blob([JSON.stringify(S)],{type:'application/json'}),a=document.createElement('a');
+ a.href=URL.createObjectURL(b);a.download='copia-distribuidora-'+ld(new Date())+'.json';document.body.appendChild(a);a.click();a.remove();
+ setTimeout(()=>URL.revokeObjectURL(a.href),1000);msg('Copia guardada en tu carpeta de descargas.')}
+function restore(file){
+ if(!isAdmin())return;
+ if(!file)return;const r=new FileReader();
+ r.onload=()=>{
+  let d;
+  try{d=JSON.parse(r.result);if(!d.products||!d.mov)throw 0}
+  catch(e){msg('El archivo no es una copia válida.');return}
+  ask('Esto importará los datos de la copia DENTRO de la base de datos en la nube, sumándose a los datos actuales (no los reemplaza). Las cuentas de usuario de la copia no se importan: solo el inventario, movimientos, ventas, nómina y deudas. ¿Continuar?',async()=>{
+   try{
+    msg('Importando datos… esto puede tardar un momento, no cierres esta ventana.');
+    const idMap={};
+    for(const p of d.products||[]){const ref=await addDoc(collection(db,'products'),{name:p.name,pres:p.pres,...(p.cost!=null?{cost:p.cost}:{})});idMap[p.id]=ref.id}
+    for(const m of d.mov||[]){await addDoc(collection(db,'movements'),{t:m.t,pid:idMap[m.pid]!==undefined?idMap[m.pid]:m.pid,nm:m.nm||null,type:m.type,pn:m.pn,pq:m.pq,u:m.u,tot:m.tot??null,cost:m.cost??null,f:m.f??null})}
+    for(const c of d.cash||[]){await addDoc(collection(db,'cash'),{t:c.t,k:c.k,c:c.c,a:c.a})}
+    for(const c of d.counts||[]){await addDoc(collection(db,'counts'),{t:c.t,pid:idMap[c.pid]!==undefined?idMap[c.pid]:c.pid,s:c.s,c:c.c,d:c.d})}
+    for(const f of d.inv||[]){await addDoc(collection(db,'invoices'),{n:f.n,t:f.t,cl:f.cl,vendor:f.vendor||null,items:f.items,total:f.total,pay:f.pay})}
+    for(const w of d.workers||[]){await addDoc(collection(db,'workers'),{name:w.name,salary:w.salary,transport:w.transport,hp:w.hp})}
+    for(const p of d.payroll||[]){await addDoc(collection(db,'payroll'),{t:p.t,workerId:p.workerId,workerName:p.workerName,period:p.period||'',dias:p.dias,sal:p.sal,ta:p.ta,extras:p.extras,oi:p.oi,devengado:p.devengado,ded:p.ded,od:p.od,deducciones:p.deducciones,neto:p.neto})}
+    for(const deb of d.debts||[]){await addDoc(collection(db,'debts'),{type:deb.type,name:deb.name,amount:deb.amount,date:deb.date,term:deb.term,note:deb.note||'',payments:deb.payments||[]})}
+    if(d.cfg&&d.cfg.transportAux)await setDoc(doc(db,'config','main'),{transportAux:d.cfg.transportAux},{merge:true});
+    msg('Copia importada correctamente.')
+   }catch(e){showErr(e)}})};
+ r.readAsText(file)}
+
+function findP(n){n=n.trim().toLowerCase();return S.products.find(p=>p.name.toLowerCase()==n)}
+function ucost(id){const p=S.products.find(x=>x.id==id);if(p&&p.cost!=null)return p.cost;let c=0,u=0;S.mov.forEach(m=>{if(m.pid==id&&m.type=='Compra'&&m.cost!=null&&m.u>0){c+=m.cost;u+=m.u}});return u?c/u:null}
+function entradaHist(){
+ const rows=[...S.mov].filter(m=>m.type=='Compra').reverse().map(m=>{const p=S.products.find(x=>x.id==m.pid);return `<tr><td>${new Date(m.t).toLocaleString('es',{dateStyle:'short',timeStyle:'short'})}</td><td>${esc(p?p.name:(m.nm||'(eliminado)'))}</td><td class="r">${m.pq} u</td><td class="r">${m.cost!=null?money(m.cost):'—'}</td></tr>`}).join('')||'<tr><td colspan="4">Aún no hay entradas registradas.</td></tr>';
+ return `<section><h2>Historial de entradas</h2><div class="sc"><table><tr><th>Fecha</th><th>Producto</th><th class="r">Unidades</th><th class="r">Costo total</th></tr>${rows}</table></div></section>`}
+function eView(){
+ if(!isAdmin())return entradaHist();
+ return `<section><h2>Registrar entrada</h2><p class="m" style="margin-bottom:10px">Registra la compra en unidades. Si el producto ya existe se suma a su stock; si no, se crea como nuevo. Las presentaciones y los precios de venta los defines al vender.</p><div class="g"><label>Producto<input id="ep" list="el" autocomplete="off" placeholder="Escribe el nombre"><datalist id="el">${S.products.map(p=>`<option value="${esc(p.name)}">`).join('')}</datalist></label><label>Cantidad (unidades)<input id="eq" type="number" min="1" value="1"></label><label>Costo unitario<input id="ec" type="number" min="0"></label><label>Costo total<input id="et" readonly placeholder="Unidades × costo unitario"></label></div><p id="info"></p><button class="b" id="go">Registrar entrada</button></section>
+ ${entradaHist()}`}
+function wireE(){
+ if(!isAdmin()||!$('#go'))return;
+ const upd=()=>{const name=$('#ep').value.trim(),p=findP(name),q=Math.floor(+$('#eq').value)||0,c=$('#ec').value;
+  let t=!name?'Escribe el nombre. Si el producto ya existe, se suma al stock; si no, se crea como nuevo.':p?`Se sumará a «${p.name}»: stock ${stock(p.id)} → ${stock(p.id)+q} u`:'Producto nuevo: se creará en el inventario.';
+  $('#et').value=q>0&&c!==''?money(q*c):'';$('#info').textContent=t};
+ ['#ep','#eq','#ec'].forEach(k=>{$(k).oninput=upd});upd();
+ $('#go').onclick=async()=>{
+  if(!isAdmin())return;
+  const name=$('#ep').value.trim(),q=Math.floor(+$('#eq').value);
+  if(!name)return msg('Escribe el nombre del producto.');
+  if(!(q>0))return msg('Escribe una cantidad mayor a cero.');
+  try{
+   let p=findP(name);const nuevo=!p;let pid;
+   if(nuevo){const ref=await addDoc(collection(db,'products'),{name,pres:[{n:'Unidad',q:1,p:null}]});pid=ref.id}
+   else{pid=p.id}
+   const cost=$('#ec').value!==''?q*+$('#ec').value:null;
+   if(cost!==null){
+    const cu=cost/q,s0=nuevo?0:Math.max(0,stock(pid)),c0=nuevo?null:ucost(pid);
+    const newCost=(!s0||c0==null)?cu:(s0*c0+q*cu)/(s0+q);
+    await updateDoc(doc(db,'products',pid),{cost:newCost})}
+   await addDoc(collection(db,'movements'),{t:Date.now(),pid,nm:name,type:'Compra',pn:'Unidad',pq:q,u:q,tot:null,cost});
+   msg(nuevo?'Producto nuevo creado y entrada registrada.':'Entrada registrada: el stock se actualizó.');render()
+  }catch(e){showErr(e)}}}
+
+function openModal(html){$('#mdBox').innerHTML=html;$('#mdBg').hidden=false}
+function closeModal(){$('#mdBg').hidden=true;$('#mdBox').innerHTML=''}
+function pickP(id){
+ if(!isAdmin())return;
+ const p=S.products.find(x=>x.id==id);if(!p)return;
+ openModal(`<h2 style="margin-top:0">Embalar: ${esc(p.name)}</h2><p class="m" style="margin-bottom:10px">Define cómo vendes este producto: por paca, caja u otra presentación, con su precio. El precio de la unidad se cambia en la tabla de Productos y stock. Si ya existe una presentación con las mismas unidades, se actualiza.</p><div class="g"><label>Presentación<input id="bn" placeholder="Ej. Paca"></label><label>Unidades que trae<input id="bq" type="number" min="1"></label><label>Precio de venta<input id="bpr" type="number" min="0"></label></div><div style="display:flex;gap:10px;margin-top:12px"><button class="b" onclick="embalar('${id}')">Guardar presentación</button><button class="l" onclick="closeModal()">Cancelar</button></div>`);
+ setTimeout(()=>{const e=$('#bn');if(e)e.focus()},0)}
+async function embalar(id){
+ if(!isAdmin())return;
+ const p=S.products.find(x=>x.id==id),n=$('#bn').value.trim(),q=Math.floor(+$('#bq').value),pr=$('#bpr').value;
+ if(!p)return msg('No encuentro ese producto.');
+ if(!n||!(q>0)||pr==='')return msg('Escribe el nombre, las unidades que trae y el precio de venta.');
+ const pres=p.pres.map(x=>({...x})),x=pres.find(z=>z.q==q);
+ if(x){x.n=n;x.p=+pr}else pres.push({n,q,p:+pr});
+ pres.sort((a,b)=>a.q-b.q);
+ try{await updateDoc(doc(db,'products',id),{pres});closeModal();msg(`Presentación "${n}" (${q} u) guardada en ${p.name}.`);render()}
+ catch(e){showErr(e)}}
+function delPres(id,i){
+ if(!isAdmin())return;
+ const p=S.products.find(x=>x.id==id),x=p.pres[i];if(!p||!x)return;
+ ask(`¿Quitar la presentación "${x.n}" de ${p.name}?`,async()=>{
+  try{const pres=p.pres.filter((_,idx)=>idx!=i);await updateDoc(doc(db,'products',id),{pres});render()}
+  catch(e){showErr(e)}})}
+
+const rv=n=>n==null?'':Math.round(n*100)/100;
+function unitP(p){const u=p.pres.find(x=>x.q==1);return u?u.p:null}
+async function setCost(id,v){
+ if(!isAdmin())return;if(v==='')return render();
+ try{await updateDoc(doc(db,'products',id),{cost:Math.max(0,+v)});msg('Costo unitario actualizado.');render()}
+ catch(e){showErr(e)}}
+async function setUnitP(id,v){
+ if(!isAdmin())return;if(v==='')return render();
+ const p=S.products.find(x=>x.id==id);if(!p)return;
+ const pres=p.pres.map(x=>({...x})),u=pres.find(x=>x.q==1);
+ if(u)u.p=Math.max(0,+v);else pres.unshift({n:'Unidad',q:1,p:Math.max(0,+v)});
+ try{await updateDoc(doc(db,'products',id),{pres});msg('Precio de venta actualizado.');render()}
+ catch(e){showErr(e)}}
+async function setPresPrice(id,i,v){
+ if(!isAdmin())return;if(v==='')return render();
+ const p=S.products.find(x=>x.id==id);if(!p)return;
+ const pres=p.pres.map(x=>({...x}));pres[i].p=Math.max(0,+v);
+ try{await updateDoc(doc(db,'products',id),{pres});msg('Precio de '+pres[i].n+' actualizado en '+p.name+'.');render()}
+ catch(e){showErr(e)}}
+let pzSel='';
+function updPriceProduct(){
+ pzSel=$('#pzn').value;const p=findP(pzSel),e=$('#pzBody');if(!e)return;
+ if(!p){e.innerHTML=pzSel.trim()?'<p class="m">No encuentro ese producto.</p>':'';return}
+ const idx=[];p.pres.forEach((x,i)=>{if(x.q>1)idx.push(i)});
+ if(!idx.length){e.innerHTML=`<p class="m">"${esc(p.name)}" todavía no tiene pacas, cajas u otras presentaciones. Agrégalas en "Embalar un producto" más abajo.</p>`;return}
+ e.innerHTML=`<div class="sc"><table><tr><th>Presentación</th><th class="r">Precio de venta</th></tr>${idx.map(i=>{const x=p.pres[i];return `<tr><td>${esc(x.n)} (${x.q} u)</td><td class="r"><input type="number" min="0" step="any" value="${rv(x.p)}" onchange="setPresPrice('${p.id}',${i},this.value)" aria-label="Precio de venta" style="width:120px"></td></tr>`}).join('')}</table></div>`}
+function wirePrices(){if($('#pzn'))updPriceProduct()}
+function pricesView(){
+ if(!S.products.length)return '<section><h2>Actualizar precios</h2><p class="m">Primero agrega productos en Inventario.</p></section>';
+ const names=[...S.products].sort((a,b)=>a.name.localeCompare(b.name,'es')).map(p=>`<option value="${esc(p.name)}">`).join('');
+ return `<section><h2>Actualizar precios</h2><p class="m" style="margin-bottom:10px">Elige el producto al que le quieres actualizar el precio de sus pacas, cajas u otras presentaciones. El precio de la unidad se cambia arriba, en la tabla de Productos y stock.</p><div class="g"><label>Producto<input id="pzn" list="pzl" autocomplete="off" placeholder="Escribe el nombre" value="${esc(pzSel)}" oninput="updPriceProduct()"><datalist id="pzl">${names}</datalist></label></div><div id="pzBody"></div></section>`}
+
+function reset(){
+ if(!isAdmin())return;
+ ask('¿Borrar TODOS los datos del negocio (productos, movimientos, ventas, nómina, deudas, etc.)? Esta acción no se puede deshacer. Las cuentas de usuario NO se borran.',async()=>{
+  try{
+   msg('Borrando datos… esto puede tardar un momento.');
+   const cols=['products','movements','cash','counts','invoices','workers','payroll','debts'];
+   for(const colName of cols){
+    const snap=await getDocs(collection(db,colName));
+    for(const dc of snap.docs){await deleteDoc(dc.ref)}}
+   await setDoc(doc(db,'config','main'),{transportAux:0,invoiceSeq:0},{merge:true});
+   msg('Datos del negocio borrados.')
+  }catch(e){showErr(e)}})}
+
+function render(){
+ if(!session){
+  document.querySelector('nav').hidden=true;
+  $('#sess').innerHTML='';$('#adminTools').hidden=true;
+  if(!authReady){$('#v').innerHTML='<section><p class="m">Cargando…</p></section>';return}
+  if(cfgHasAdmin===null){$('#v').innerHTML='<section><p class="m">Cargando…</p></section>';checkHasAdmin();return}
+  $('#v').innerHTML=cfgHasAdmin?loginView():setupView();
+  if(cfgHasAdmin)wireLogin();else wireSetup();
+  return}
+ document.querySelector('nav').hidden=false;
+ const allowed=allowedTabs(session.role);
+ if(!allowed.includes(tab))tab=allowed[0];
+ document.querySelectorAll('nav button').forEach(b=>{b.hidden=!allowed.includes(b.dataset.t);b.classList.toggle('on',b.dataset.t==tab)});
+ $('#sess').innerHTML=`Conectado como <b>${esc(session.name)}</b> (${session.role=='admin'?'Administrador':'Vendedor'}) · <button class="l" onclick="changeMyPw()">Cambiar contraseña</button> · <button class="l" onclick="logout()">Cerrar sesión</button>`;
+ $('#adminTools').hidden=!isAdmin();
+ const nb=document.querySelector('nav button[data-t="d"]'),na=(isAdmin()?dAlerts():dAlerts().filter(d=>d.type=='r')).length;
+ if(nb)nb.innerHTML='Deudas'+(na?`<span class="bd">${na}</span>`:'');
+ $('#v').innerHTML=tab=='inv'?invView():tab=='fc'?fcView():tab=='in'?eView():tab=='out'?sView():tab=='k'?kView():tab=='c'?cView():tab=='f'?fView():tab=='n'?nView():tab=='d'?dView():uView();
+ if(tab=='in')wireE();if(tab=='c')wireCount();if(tab=='f')wireF();if(tab=='fc')wireFc();if(tab=='n')wireN();if(tab=='inv')wirePrices()}
+
+document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{tab=b.dataset.t;render()});
+$('#mdBg').onclick=e=>{if(e.target.id=='mdBg')closeModal()};
+document.addEventListener('keydown',e=>{if(e.key=='Escape')closeModal()});
+Object.assign(window,{backup,reset,restore,editWorker,delWorker,addWorker,saveWorker,closeModal,pickP,delP,delPres,setCost,setUnitP,setPresPrice,embalar,editUser,delUser,addUser,saveUser,filterInv,filterDebtsR,filterDebtsP,addDebt,addAbono,delDebt,delCash,addCash,delLine,addLine,issue,printInvoice,togglePay,updPriceProduct,delPayroll,logout,changeMyPw,doChangeMyPw});
+render();
+</script>
+</body>
+</html>
