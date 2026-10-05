@@ -374,7 +374,7 @@ function invRow(p){const u=stock(p.id),adm=isAdmin();
  const presCell=p.pres.map((x,i)=>{
   if(x.q<=1)return '';
   const parts=[1,2,3].filter(lv=>x['p'+lv]!=null).map(lv=>`P${lv}: ${money(x['p'+lv])}`).join(' · ')||'sin precio';
-  return `${esc(x.n)} (${x.q} u): ${parts}`+(adm?` <button class="l" onclick="delPres('${p.id}',${i})">quitar</button>`:'')
+  return `${esc(x.n)} (${x.q} u): ${parts}`+(adm?` <button class="l" onclick="editPres('${p.id}',${i})">editar</button> <button class="l" onclick="delPres('${p.id}',${i})">quitar</button>`:'')
  }).filter(Boolean).join('<br>')||'Solo unidad';
  return `<tr><td><b>${esc(p.name)}</b>${adm?`<br><button class="l" onclick="renameProduct('${p.id}')">Editar nombre</button>`:''}</td><td class="r${u<0?' neg':''}">${u}</td><td${u<0?' class="neg"':''}>${fmt(p,u)}</td><td>${costCell}${adm?`<br><button class="l" onclick="adjustCost('${p.id}')">Ajustar costo</button>`:''}</td><td>${priceCell}</td><td class="m">${presCell}</td><td class="r">${adm?`<button class="l" onclick="pickP('${p.id}')">Embalar</button> <button class="l" onclick="delP('${p.id}')">Eliminar</button>`:''}</td></tr>`}
 function invRows(q){
@@ -1276,6 +1276,23 @@ function delPres(id,i){
  ask(`¿Quitar la presentación "${x.n}" de ${p.name}?`,async()=>{
   try{const pres=p.pres.filter((_,idx)=>idx!=i);await updateDoc(doc(db,'products',id),{pres});render()}
   catch(e){showErr(e)}})}
+function editPres(id,i){
+ if(!isAdmin())return;
+ const p=S.products.find(x=>x.id==id),x=p&&p.pres[i];if(!p||!x)return;
+ openModal(`<h2 style="margin-top:0">Editar presentación: ${esc(p.name)}</h2><p class="m" style="margin-bottom:10px">Corrige el nombre, las unidades que trae o los precios de esta presentación, por si te equivocaste al crearla.</p><div class="g"><label>Presentación<input id="epn" value="${esc(x.n)}"></label><label>Unidades que trae<input id="epq" type="number" min="1" value="${x.q}"></label></div><div class="g"><label>Precio 1<input id="eppr1" type="number" min="0" value="${rv(x.p1)}"></label><label>Precio 2 (opcional)<input id="eppr2" type="number" min="0" value="${rv(x.p2)}"></label><label>Precio 3 (opcional)<input id="eppr3" type="number" min="0" value="${rv(x.p3)}"></label></div><div style="display:flex;gap:10px;margin-top:12px"><button class="b" onclick="confirmEditPres('${id}',${i})">Guardar cambios</button><button class="l" onclick="closeModal()">Cancelar</button></div>`);
+ setTimeout(()=>{const e=$('#epn');if(e){e.focus();e.select()}},0)}
+async function confirmEditPres(id,i){
+ if(!isAdmin())return;
+ const p=S.products.find(x=>x.id==id);if(!p||!p.pres[i])return;
+ const n=$('#epn').value.trim(),q=Math.floor(+$('#epq').value),pr1=$('#eppr1').value,pr2=$('#eppr2').value,pr3=$('#eppr3').value;
+ if(!n||!(q>0)||pr1==='')return msg('Escribe el nombre, las unidades que trae y el precio 1.');
+ const dup=p.pres.find((z,idx)=>idx!=i&&z.q==q);
+ if(dup)return msg(`Ya existe otra presentación ("${dup.n}") con ${q} unidades. Usa un número distinto.`);
+ const pres=p.pres.map(z=>({...z}));
+ pres[i]={n,q,p1:+pr1,p2:pr2!==''?+pr2:null,p3:pr3!==''?+pr3:null};
+ pres.sort((a,b)=>a.q-b.q);
+ try{await updateDoc(doc(db,'products',id),{pres});closeModal();msg(`Presentación "${n}" actualizada en ${p.name}.`);render()}
+ catch(e){showErr(e)}}
 function renameProduct(id){
  if(!isAdmin())return;
  const p=S.products.find(x=>x.id==id);if(!p)return;
@@ -1360,7 +1377,7 @@ function render(){
 document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{tab=b.dataset.t;render()});
 $('#mdBg').onclick=e=>{if(e.target.id=='mdBg')closeModal()};
 document.addEventListener('keydown',e=>{if(e.key=='Escape')closeModal()});
-Object.assign(window,{backup,restore,wipeAll,doWipeAll,downloadFinancialsXlsx,editWorker,delWorker,addWorker,saveWorker,closeModal,adjustCost,confirmAdjustCost,pickP,delP,delPres,setUnitP,setPresPrice,embalar,editUser,delUser,addUser,saveUser,filterInv,filterDebtsR,filterDebtsP,addDebt,addAbono,delDebt,delCash,addCash,delLine,addLine,issue,printInvoice,togglePay,updPriceProduct,delPayroll,logout,changeMyPw,doChangeMyPw,resetVendorPw,doResetVendorPw,openReturn,fillAllReturn,updRetTotal,confirmReturn,filterFc,fcToday,fcAllDates,filterK,clearKFilter,cancelInvoice,printPayroll,toggleEntradaPay,printAbono,addLoan,addLoanAbono,delLoan,newProduct,confirmNewProduct,renameProduct,confirmRenameProduct});
+Object.assign(window,{backup,restore,wipeAll,doWipeAll,downloadFinancialsXlsx,editWorker,delWorker,addWorker,saveWorker,closeModal,adjustCost,confirmAdjustCost,pickP,delP,delPres,setUnitP,setPresPrice,embalar,editUser,delUser,addUser,saveUser,filterInv,filterDebtsR,filterDebtsP,addDebt,addAbono,delDebt,delCash,addCash,delLine,addLine,issue,printInvoice,togglePay,updPriceProduct,delPayroll,logout,changeMyPw,doChangeMyPw,resetVendorPw,doResetVendorPw,openReturn,fillAllReturn,updRetTotal,confirmReturn,filterFc,fcToday,fcAllDates,filterK,clearKFilter,cancelInvoice,printPayroll,toggleEntradaPay,printAbono,addLoan,addLoanAbono,delLoan,newProduct,confirmNewProduct,renameProduct,confirmRenameProduct,editPres,confirmEditPres});
 render();
 </script>
 </body>
