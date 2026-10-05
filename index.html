@@ -366,9 +366,33 @@ function invView(){
  return `<section><h2>Productos y stock</h2>${isAdmin()?'<p class="m" style="margin-bottom:10px">Cambia el precio de venta por unidad directamente en la tabla; se guarda al salir de la casilla. El costo unitario no se escribe aquí directamente: se actualiza solo con cada entrada que registras en "Registrar entrada", o con el botón "Ajustar costo" si el precio cambió sin que compraras mercancía nueva. El sistema permite vender aunque el stock no alcance: si eso pasa, el stock queda en negativo (se ve en rojo) para que lo corrijas después en "Conteo físico".</p>':''}${S.products.length?`<label style="max-width:320px;margin-bottom:10px">Buscar producto<input id="iqs" value="${esc(iq)}" oninput="filterInv()" placeholder="Escribe el nombre..." autocomplete="off"></label>`:''}<div class="sc"><table><tr><th>Producto</th><th class="r">Stock (unidades)</th><th>Desglose</th><th>Costo unitario</th><th>Precio de venta (unidad)</th><th>Embalajes</th><th></th></tr><tbody id="iBody">${invRows(iq)}</tbody></table></div></section>
  ${isAdmin()?pricesView():''}`}
 
+let kQ={text:'',from:'',to:''};
+function movFiltered(){
+ const txt=kQ.text.trim().toLowerCase();
+ const a=kQ.from?new Date(kQ.from+'T00:00:00').getTime():null;
+ const b=kQ.to?new Date(kQ.to+'T23:59:59.999').getTime():null;
+ return [...S.mov].filter(m=>{
+  if(a!=null&&m.t<a)return false;
+  if(b!=null&&m.t>b)return false;
+  if(txt){
+   const p=S.products.find(x=>x.id==m.pid),nm=(p?p.name:(m.nm||'')).toLowerCase();
+   if(!nm.includes(txt)&&!m.type.toLowerCase().includes(txt)&&!(m.f&&fno(m.f).includes(txt)))return false}
+  return true}).sort((x,y)=>y.t-x.t)}
+function movRows(){
+ const list=movFiltered();
+ return list.map(m=>{const p=S.products.find(x=>x.id==m.pid);return `<tr><td>${new Date(m.t).toLocaleString('es',{dateStyle:'short',timeStyle:'short'})}</td><td>${esc(p?p.name:(m.nm||'(eliminado)'))}</td><td>${esc(m.type)}${m.f?' · Fact. '+fno(m.f):''}</td><td>${m.pq} × ${esc(m.pn)}</td><td class="r ${m.u<0?'neg':'pos'}">${m.u>0?'+':''}${m.u}</td><td class="r">${m.tot!=null?money(m.tot):m.cost!=null?money(m.cost):''}</td></tr>`}).join('')||`<tr><td colspan="6">${kQ.text||kQ.from||kQ.to?'No hay movimientos que coincidan con la búsqueda.':'Aún no hay movimientos.'}</td></tr>`}
+function filterK(){
+ kQ={text:$('#kqText')?$('#kqText').value:'',from:$('#kqFrom')?$('#kqFrom').value:'',to:$('#kqTo')?$('#kqTo').value:''};
+ const b=$('#kBody');if(b)b.innerHTML=movRows();
+ const cl=$('#kqClear');if(cl)cl.hidden=!(kQ.text||kQ.from||kQ.to)}
+function clearKFilter(){
+ kQ={text:'',from:'',to:''};
+ ['#kqText','#kqFrom','#kqTo'].forEach(s=>{const e=$(s);if(e)e.value=''});
+ const b=$('#kBody');if(b)b.innerHTML=movRows();
+ const cl=$('#kqClear');if(cl)cl.hidden=true}
 function kView(){
- const rows=[...S.mov].reverse().map(m=>{const p=S.products.find(x=>x.id==m.pid);return `<tr><td>${new Date(m.t).toLocaleString('es',{dateStyle:'short',timeStyle:'short'})}</td><td>${esc(p?p.name:(m.nm||'(eliminado)'))}</td><td>${esc(m.type)}${m.f?' · Fact. '+fno(m.f):''}</td><td>${m.pq} × ${esc(m.pn)}</td><td class="r ${m.u<0?'neg':'pos'}">${m.u>0?'+':''}${m.u}</td><td class="r">${m.tot!=null?money(m.tot):m.cost!=null?money(m.cost):''}</td></tr>`}).join('')||'<tr><td colspan="6">Aún no hay movimientos.</td></tr>';
- return `<section><h2>Historial de movimientos</h2><p class="m" style="margin-bottom:10px">El stock se calcula siempre sumando estos movimientos.</p><div class="sc"><table><tr><th>Fecha</th><th>Producto</th><th>Tipo</th><th>Presentación</th><th class="r">Unidades</th><th class="r">Total</th></tr>${rows}</table></div></section>`}
+ const searchBar=S.mov.length?`<div class="g"><label>Buscar por producto, tipo o N° de factura<input id="kqText" value="${esc(kQ.text)}" oninput="filterK()" placeholder="Ej. Arroz, Venta o 0007" autocomplete="off"></label><label>Desde<input type="date" id="kqFrom" value="${kQ.from}" onchange="filterK()"></label><label>Hasta<input type="date" id="kqTo" value="${kQ.to}" onchange="filterK()"></label></div><p id="kqClear" ${(kQ.text||kQ.from||kQ.to)?'':'hidden'} style="margin:-4px 0 10px"><button class="l" onclick="clearKFilter()">Limpiar búsqueda</button></p>`:'';
+ return `<section><h2>Historial de movimientos</h2><p class="m" style="margin-bottom:10px">El stock se calcula siempre sumando estos movimientos.</p>${searchBar}<div class="sc"><table><tr><th>Fecha</th><th>Producto</th><th>Tipo</th><th>Presentación</th><th class="r">Unidades</th><th class="r">Total</th></tr><tbody id="kBody">${movRows()}</tbody></table></div></section>`}
 
 function cView(){
  if(!S.products.length)return '<section><p>Primero agrega un producto en Inventario.</p></section>';
@@ -1174,7 +1198,7 @@ function render(){
 document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{tab=b.dataset.t;render()});
 $('#mdBg').onclick=e=>{if(e.target.id=='mdBg')closeModal()};
 document.addEventListener('keydown',e=>{if(e.key=='Escape')closeModal()});
-Object.assign(window,{backup,restore,wipeAll,doWipeAll,downloadFinancialsXlsx,editWorker,delWorker,addWorker,saveWorker,closeModal,adjustCost,confirmAdjustCost,pickP,delP,delPres,setUnitP,setPresPrice,embalar,editUser,delUser,addUser,saveUser,filterInv,filterDebtsR,filterDebtsP,addDebt,addAbono,delDebt,delCash,addCash,delLine,addLine,issue,printInvoice,togglePay,updPriceProduct,delPayroll,logout,changeMyPw,doChangeMyPw,resetVendorPw,doResetVendorPw,openReturn,fillAllReturn,updRetTotal,confirmReturn,filterFc,clearFcFilter,cancelInvoice,printPayroll});
+Object.assign(window,{backup,restore,wipeAll,doWipeAll,downloadFinancialsXlsx,editWorker,delWorker,addWorker,saveWorker,closeModal,adjustCost,confirmAdjustCost,pickP,delP,delPres,setUnitP,setPresPrice,embalar,editUser,delUser,addUser,saveUser,filterInv,filterDebtsR,filterDebtsP,addDebt,addAbono,delDebt,delCash,addCash,delLine,addLine,issue,printInvoice,togglePay,updPriceProduct,delPayroll,logout,changeMyPw,doChangeMyPw,resetVendorPw,doResetVendorPw,openReturn,fillAllReturn,updRetTotal,confirmReturn,filterFc,clearFcFilter,filterK,clearKFilter,cancelInvoice,printPayroll});
 render();
 </script>
 </body>
