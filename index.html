@@ -110,6 +110,7 @@ button{transition:transform .1s,box-shadow .15s,background .15s,filter .15s}
 <nav>
 <button data-t="inv">Inventario</button>
 <button data-t="fc">Ventas</button>
+<button data-t="fac">Facturas</button>
 <button data-t="in">Registrar entrada</button>
 <button data-t="out">Salidas</button>
 <button data-t="c">Conteo físico</button>
@@ -169,7 +170,7 @@ let unsubs=[];
 
 function isAdmin(){return !!session&&session.role=='admin'}
 function isSuperAdmin(){return isAdmin()&&(session.username||'').toLowerCase()=='daniel'}
-function allowedTabs(role){return role=='admin'?['inv','fc','in','out','c','f','n','d','k','bg','u']:['inv','fc','in','out','d']}
+function allowedTabs(role){return role=='admin'?['inv','fc','fac','in','out','c','f','n','d','k','bg','u']:['inv','fc','fac','in','out','d']}
 
 function detachListeners(){unsubs.forEach(u=>{try{u()}catch(e){}});unsubs=[]}
 function attachListeners(){
@@ -603,7 +604,7 @@ function delP(id){
    await deleteDoc(doc(db,'products',id));
    C.lines=C.lines.filter(l=>l.pid!=id);render()
   }catch(e){showErr(e)}})}
-let fcQ={text:'',from:'',to:''};
+let fcQ={text:'',from:ld(new Date()),to:ld(new Date())};
 function invoiceRow(f){
  const pay=f.pay||{cash:f.total,transfer:0,credit:0},payTxt=pay.credit?`Crédito (${money(pay.credit)})`:!pay.transfer?'Efectivo':!pay.cash?'Transferencia':`Mixto: ${money(pay.cash)} efec. + ${money(pay.transfer)} transf.`;
  const retTot=returnedTotalForInvoice(f.n),cancelled=retTot>=f.total-0.01;
@@ -622,23 +623,28 @@ function invoicesFiltered(){
   return true}).sort((x,y)=>y.n-x.n)}
 function salesRows(){
  const list=invoicesFiltered();
- return list.map(invoiceRow).join('')||`<tr><td colspan="8">${fcQ.text||fcQ.from||fcQ.to?'No hay ventas que coincidan con la búsqueda.':'Aún no has registrado ventas.'}</td></tr>`}
+ return list.map(invoiceRow).join('')||`<tr><td colspan="8">${fcQ.text?'No hay ventas que coincidan con la búsqueda.':'No hay ventas en el rango de fechas elegido.'}</td></tr>`}
 function filterFc(){
  fcQ={text:$('#fcqText')?$('#fcqText').value:'',from:$('#fcqFrom')?$('#fcqFrom').value:'',to:$('#fcqTo')?$('#fcqTo').value:''};
- const b=$('#fcBody');if(b)b.innerHTML=salesRows();
- const cl=$('#fcqClear');if(cl)cl.hidden=!(fcQ.text||fcQ.from||fcQ.to)}
-function clearFcFilter(){
- fcQ={text:'',from:'',to:''};
- ['#fcqText','#fcqFrom','#fcqTo'].forEach(s=>{const e=$(s);if(e)e.value=''});
- const b=$('#fcBody');if(b)b.innerHTML=salesRows();
- const cl=$('#fcqClear');if(cl)cl.hidden=true}
+ const b=$('#fcBody');if(b)b.innerHTML=salesRows()}
+function fcToday(){
+ fcQ.from=ld(new Date());fcQ.to=ld(new Date());
+ const f=$('#fcqFrom'),t=$('#fcqTo');if(f)f.value=fcQ.from;if(t)t.value=fcQ.to;
+ const b=$('#fcBody');if(b)b.innerHTML=salesRows()}
+function fcAllDates(){
+ fcQ.from='';fcQ.to='';
+ const f=$('#fcqFrom'),t=$('#fcqTo');if(f)f.value='';if(t)t.value='';
+ const b=$('#fcBody');if(b)b.innerHTML=salesRows()}
 function fcView(){
  if(!S.products.length)return '<section><p>Primero agrega un producto en Inventario.</p></section>';
  const tot=C.lines.reduce((a,l)=>a+l.sub,0);
  const ls=C.lines.map((l,i)=>`<tr><td>${esc(l.name)}</td><td>${l.q} × ${esc(l.pn)}</td><td class="r">${money(l.p)}</td><td class="r">${money(l.sub)}</td><td class="r"><button class="l" onclick="delLine(${i})">Quitar</button></td></tr>`).join('')||'<tr><td colspan="5">Aún no hay productos en la factura. Agrega el primero arriba.</td></tr>';
  const vdl=S.workers.map(w=>`<option value="${esc(w.name)}">`).join('');
- const searchBar=S.inv.length?`<div class="g"><label>Buscar por cliente o N° de factura<input id="fcqText" value="${esc(fcQ.text)}" oninput="filterFc()" placeholder="Ej. Juan Pérez o 0007" autocomplete="off"></label><label>Desde<input type="date" id="fcqFrom" value="${fcQ.from}" onchange="filterFc()"></label><label>Hasta<input type="date" id="fcqTo" value="${fcQ.to}" onchange="filterFc()"></label></div><p id="fcqClear" ${(fcQ.text||fcQ.from||fcQ.to)?'':'hidden'} style="margin:-4px 0 10px"><button class="l" onclick="clearFcFilter()">Limpiar búsqueda</button></p>`:'';
- return `<section><h2>Nueva factura de venta</h2><div class="g"><label>Cliente<input id="fc" value="${esc(C.cliente)}" placeholder="Nombre de quien compra"></label><label>Vendedor / trabajador que atiende<input id="fv" list="fvl" value="${esc(C.vendor)}" placeholder="Nombre del trabajador" ${isAdmin()?'':'readonly'}><datalist id="fvl">${vdl}</datalist></label></div><div class="g"><label>Producto<select id="mp">${S.products.map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join('')}</select></label><label>Presentación<select id="mpr"></select></label><label>Cantidad<input id="mq" type="number" min="1" value="1"></label><label>Precio de venta<input id="mpp" type="number" min="0"></label><label>Subtotal<input id="mst" readonly placeholder="Precio × cantidad"></label></div><div id="mnew" hidden><div class="g"><label>Nombre de la presentación<input id="mnn" placeholder="Ej. Paca"></label><label>Unidades que trae<input id="mnq" type="number" min="1"></label></div></div><p id="info"></p><button class="b" onclick="addLine()">Agregar a la factura</button></section><section><h2>Productos de la factura</h2><div class="sc"><table><tr><th>Producto</th><th>Cantidad</th><th class="r">Precio</th><th class="r">Subtotal</th><th></th></tr>${ls}<tr><td colspan="3" class="r"><b>Total</b></td><td class="r"><b>${money(tot)}</b></td><td></td></tr></table></div><div class="g" style="margin-top:12px"><label>Forma de pago<select id="payM" onchange="togglePay()"><option value="cash" ${C.pm=='cash'?'selected':''}>Efectivo</option><option value="transfer" ${C.pm=='transfer'?'selected':''}>Transferencia</option><option value="credit" ${C.pm=='credit'?'selected':''}>Crédito (el cliente paga todo después)</option><option value="mix" ${C.pm=='mix'?'selected':''}>Combinado (parte efectivo, parte transferencia y/o parte a crédito)</option></select></label></div><div id="payMix" ${C.pm=='mix'?'':'hidden'}><div class="g"><label>Monto en efectivo<input id="payCash" type="number" min="0" value="${C.pc}"></label><label>Monto en transferencia<input id="payTransfer" type="number" min="0" value="${C.pt}"></label><label>Monto a crédito<input id="payCreditAmt" type="number" min="0" value="${C.pcr}"></label></div><p id="payInfo" class="m"></p></div><div id="payCreditNote" ${C.pm=='credit'?'':'hidden'}><p class="m">El cliente quedará registrado automáticamente en Deudas como deudor por el total de esta factura. Escribe su nombre arriba, en "Cliente".</p></div><div id="payTermBox" ${(C.pm=='credit'||C.pm=='mix')?'':'hidden'}><div class="g"><label>Plazo del crédito (días, opcional)<input id="payTerm" type="number" min="0" value="${C.pterm}"></label></div><p class="m" style="margin-top:4px">Si parte del pago queda a crédito, el cliente pasará a Deudas por ese monto pendiente; escribe su nombre arriba, en "Cliente".</p></div><p style="margin-top:12px"><button class="b" onclick="issue()">Emitir factura</button></p></section><section><h2>Registro de ventas</h2>${searchBar}<div class="sc"><table><tr><th>N°</th><th>Fecha</th><th>Cliente</th><th>Productos</th><th>Pago</th><th>Vendedor</th><th class="r">Total</th><th></th></tr><tbody id="fcBody">${salesRows()}</tbody></table></div></section>`}
+ return `<section><h2>Nueva factura de venta</h2><div class="g"><label>Cliente<input id="fc" value="${esc(C.cliente)}" placeholder="Nombre de quien compra"></label><label>Vendedor / trabajador que atiende<input id="fv" list="fvl" value="${esc(C.vendor)}" placeholder="Nombre del trabajador" ${isAdmin()?'':'readonly'}><datalist id="fvl">${vdl}</datalist></label></div><div class="g"><label>Producto<select id="mp">${S.products.map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join('')}</select></label><label>Presentación<select id="mpr"></select></label><label>Cantidad<input id="mq" type="number" min="1" value="1"></label><label>Precio de venta<input id="mpp" type="number" min="0"></label><label>Subtotal<input id="mst" readonly placeholder="Precio × cantidad"></label></div><div id="mnew" hidden><div class="g"><label>Nombre de la presentación<input id="mnn" placeholder="Ej. Paca"></label><label>Unidades que trae<input id="mnq" type="number" min="1"></label></div></div><p id="info"></p><button class="b" onclick="addLine()">Agregar a la factura</button></section><section><h2>Productos de la factura</h2><div class="sc"><table><tr><th>Producto</th><th>Cantidad</th><th class="r">Precio</th><th class="r">Subtotal</th><th></th></tr>${ls}<tr><td colspan="3" class="r"><b>Total</b></td><td class="r"><b>${money(tot)}</b></td><td></td></tr></table></div><div class="g" style="margin-top:12px"><label>Forma de pago<select id="payM" onchange="togglePay()"><option value="cash" ${C.pm=='cash'?'selected':''}>Efectivo</option><option value="transfer" ${C.pm=='transfer'?'selected':''}>Transferencia</option><option value="credit" ${C.pm=='credit'?'selected':''}>Crédito (el cliente paga todo después)</option><option value="mix" ${C.pm=='mix'?'selected':''}>Combinado (parte efectivo, parte transferencia y/o parte a crédito)</option></select></label></div><div id="payMix" ${C.pm=='mix'?'':'hidden'}><div class="g"><label>Monto en efectivo<input id="payCash" type="number" min="0" value="${C.pc}"></label><label>Monto en transferencia<input id="payTransfer" type="number" min="0" value="${C.pt}"></label><label>Monto a crédito<input id="payCreditAmt" type="number" min="0" value="${C.pcr}"></label></div><p id="payInfo" class="m"></p></div><div id="payCreditNote" ${C.pm=='credit'?'':'hidden'}><p class="m">El cliente quedará registrado automáticamente en Deudas como deudor por el total de esta factura. Escribe su nombre arriba, en "Cliente".</p></div><div id="payTermBox" ${(C.pm=='credit'||C.pm=='mix')?'':'hidden'}><div class="g"><label>Plazo del crédito (días, opcional)<input id="payTerm" type="number" min="0" value="${C.pterm}"></label></div><p class="m" style="margin-top:4px">Si parte del pago queda a crédito, el cliente pasará a Deudas por ese monto pendiente; escribe su nombre arriba, en "Cliente".</p></div><p style="margin-top:12px"><button class="b" onclick="issue()">Emitir factura</button></p></section>`}
+function facView(){
+ if(!S.inv.length)return '<section><h2>Facturas</h2><p class="m">Aún no has registrado ventas. Cuando emitas la primera factura desde "Ventas", aparecerá aquí.</p></section>';
+ const searchBar=`<div class="g"><label>Buscar por cliente o N° de factura<input id="fcqText" value="${esc(fcQ.text)}" oninput="filterFc()" placeholder="Ej. Juan Pérez o 0007" autocomplete="off"></label><label>Desde<input type="date" id="fcqFrom" value="${fcQ.from}" onchange="filterFc()"></label><label>Hasta<input type="date" id="fcqTo" value="${fcQ.to}" onchange="filterFc()"></label></div><p style="margin:-4px 0 10px"><button class="l" onclick="fcToday()">Ver solo hoy</button> · <button class="l" onclick="fcAllDates()">Ver todas las fechas</button></p>`;
+ return `<section><h2>Facturas</h2><p class="m" style="margin-bottom:10px">Por defecto ves las facturas de hoy. Cambia las fechas o busca por cliente o número para encontrar cualquier otra.</p>${searchBar}<div class="sc"><table><tr><th>N°</th><th>Fecha</th><th>Cliente</th><th>Productos</th><th>Pago</th><th>Vendedor</th><th class="r">Total</th><th></th></tr><tbody id="fcBody">${salesRows()}</tbody></table></div></section>`}
 function wireFc(){
  if(!$('#mp'))return;
  $('#fc').oninput=()=>{C.cliente=$('#fc').value};
@@ -1192,13 +1198,13 @@ function render(){
  $('#wipeBtn').hidden=!isSuperAdmin();
  const nb=document.querySelector('nav button[data-t="d"]'),na=(isAdmin()?dAlerts():dAlerts().filter(d=>d.type=='r')).length;
  if(nb)nb.innerHTML='Deudas'+(na?`<span class="bd">${na}</span>`:'');
- $('#v').innerHTML=tab=='inv'?invView():tab=='fc'?fcView():tab=='in'?eView():tab=='out'?sView():tab=='k'?kView():tab=='c'?cView():tab=='f'?fView():tab=='n'?nView():tab=='d'?dView():tab=='bg'?bgView():uView();
+ $('#v').innerHTML=tab=='inv'?invView():tab=='fc'?fcView():tab=='fac'?facView():tab=='in'?eView():tab=='out'?sView():tab=='k'?kView():tab=='c'?cView():tab=='f'?fView():tab=='n'?nView():tab=='d'?dView():tab=='bg'?bgView():uView();
  if(tab=='in')wireE();if(tab=='c')wireCount();if(tab=='f')wireF();if(tab=='fc')wireFc();if(tab=='n')wireN();if(tab=='inv')wirePrices();if(tab=='bg')wireBg()}
 
 document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{tab=b.dataset.t;render()});
 $('#mdBg').onclick=e=>{if(e.target.id=='mdBg')closeModal()};
 document.addEventListener('keydown',e=>{if(e.key=='Escape')closeModal()});
-Object.assign(window,{backup,restore,wipeAll,doWipeAll,downloadFinancialsXlsx,editWorker,delWorker,addWorker,saveWorker,closeModal,adjustCost,confirmAdjustCost,pickP,delP,delPres,setUnitP,setPresPrice,embalar,editUser,delUser,addUser,saveUser,filterInv,filterDebtsR,filterDebtsP,addDebt,addAbono,delDebt,delCash,addCash,delLine,addLine,issue,printInvoice,togglePay,updPriceProduct,delPayroll,logout,changeMyPw,doChangeMyPw,resetVendorPw,doResetVendorPw,openReturn,fillAllReturn,updRetTotal,confirmReturn,filterFc,clearFcFilter,filterK,clearKFilter,cancelInvoice,printPayroll});
+Object.assign(window,{backup,restore,wipeAll,doWipeAll,downloadFinancialsXlsx,editWorker,delWorker,addWorker,saveWorker,closeModal,adjustCost,confirmAdjustCost,pickP,delP,delPres,setUnitP,setPresPrice,embalar,editUser,delUser,addUser,saveUser,filterInv,filterDebtsR,filterDebtsP,addDebt,addAbono,delDebt,delCash,addCash,delLine,addLine,issue,printInvoice,togglePay,updPriceProduct,delPayroll,logout,changeMyPw,doChangeMyPw,resetVendorPw,doResetVendorPw,openReturn,fillAllReturn,updRetTotal,confirmReturn,filterFc,fcToday,fcAllDates,filterK,clearKFilter,cancelInvoice,printPayroll});
 render();
 </script>
 </body>
