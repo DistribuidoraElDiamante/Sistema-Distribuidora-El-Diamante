@@ -106,7 +106,7 @@ button{transition:transform .1s,box-shadow .15s,background .15s,filter .15s}
 </head>
 <body>
 <main>
-<div class="top"><div class="brand"><div class="gemWrap"><svg class="gem" width="32" height="32" viewBox="0 0 48 48" aria-hidden="true"><defs><linearGradient id="gemGradHeader" x1="4" y1="8" x2="44" y2="42" gradientUnits="userSpaceOnUse"><stop offset="0" class="s1"/><stop offset="1" class="s2"/></linearGradient></defs><path d="M12 8H36L44 18L24 42L4 18Z" fill="url(#gemGradHeader)"/><path class="facet-hi" d="M12 8L17 18L4 18Z"/><path class="facet-lo" d="M36 8L44 18L31 18Z"/><path class="facet-mid" d="M17 18L31 18L24 42Z"/><path class="facet-line" d="M4 18H44M12 8L17 18M36 8L31 18M17 18L24 42M31 18L24 42" fill="none"/></svg></div><div><h1>Sistema de Distribuidora el Diamante</h1><p class="m">Los datos se guardan en la nube (Firebase) y se sincronizan automáticamente en todos los computadores conectados a internet.</p></div></div><div class="utility"><span id="sess" class="m"></span><div id="adminTools" hidden><button class="l" onclick="backup()">Guardar copia de seguridad</button><label class="l" style="cursor:pointer;flex-direction:row;color:var(--mu)">Importar copia<input type="file" accept=".json,application/json" hidden onchange="restore(this.files[0]);this.value=''"></label><button class="ld" onclick="wipeAll()">Eliminar todos los datos</button></div></div></div>
+<div class="top"><div class="brand"><div class="gemWrap"><svg class="gem" width="32" height="32" viewBox="0 0 48 48" aria-hidden="true"><defs><linearGradient id="gemGradHeader" x1="4" y1="8" x2="44" y2="42" gradientUnits="userSpaceOnUse"><stop offset="0" class="s1"/><stop offset="1" class="s2"/></linearGradient></defs><path d="M12 8H36L44 18L24 42L4 18Z" fill="url(#gemGradHeader)"/><path class="facet-hi" d="M12 8L17 18L4 18Z"/><path class="facet-lo" d="M36 8L44 18L31 18Z"/><path class="facet-mid" d="M17 18L31 18L24 42Z"/><path class="facet-line" d="M4 18H44M12 8L17 18M36 8L31 18M17 18L24 42M31 18L24 42" fill="none"/></svg></div><div><h1>Sistema de Distribuidora el Diamante</h1><p class="m">Los datos se guardan en la nube (Firebase) y se sincronizan automáticamente en todos los computadores conectados a internet.</p></div></div><div class="utility"><span id="sess" class="m"></span><div id="adminTools" hidden><button class="l" onclick="backup()">Guardar copia de seguridad</button><label class="l" style="cursor:pointer;flex-direction:row;color:var(--mu)">Importar copia<input type="file" accept=".json,application/json" hidden onchange="restore(this.files[0]);this.value=''"></label><button class="ld" id="wipeBtn" hidden onclick="wipeAll()">Eliminar todos los datos</button></div></div></div>
 <nav>
 <button data-t="inv">Inventario</button>
 <button data-t="fc">Ventas</button>
@@ -128,6 +128,7 @@ button{transition:transform .1s,box-shadow .15s,background .15s,filter .15s}
 import { initializeApp, deleteApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, EmailAuthProvider, reauthenticateWithCredential, updatePassword } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { getFirestore, collection, doc, addDoc, setDoc, updateDoc, deleteDoc, getDoc, getDocs, onSnapshot, runTransaction } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-functions.js";
 
 // ====================================================================
 // PEGA AQUÍ TU CONFIGURACIÓN DE FIREBASE (Firebase Console > Configuración
@@ -147,6 +148,7 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
+const functions = getFunctions(app);
 
 const $=s=>document.querySelector(s);
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -166,6 +168,7 @@ let cfgHasAdmin=null;
 let unsubs=[];
 
 function isAdmin(){return !!session&&session.role=='admin'}
+function isSuperAdmin(){return isAdmin()&&(session.username||'').toLowerCase()=='daniel'}
 function allowedTabs(role){return role=='admin'?['inv','fc','in','out','c','f','n','d','k','bg','u']:['inv','fc','in','out','d']}
 
 function detachListeners(){unsubs.forEach(u=>{try{u()}catch(e){}});unsubs=[]}
@@ -277,9 +280,34 @@ async function doChangeMyPw(){
   else showErr(e)
  }}
 
+function resetVendorPw(id){
+ if(!isAdmin())return;
+ const u=S.users.find(x=>x.id==id);if(!u)return;
+ if(u.role!='vendedor')return msg('Solo puedes restablecer la contraseña de cuentas de vendedor.');
+ openModal(`<h2 style="margin-top:0">Restablecer contraseña: ${esc(u.name)}</h2><p class="m" style="margin-bottom:10px">Escribe la nueva contraseña para esta cuenta de vendedor. La contraseña actual quedará reemplazada de inmediato.</p><div class="g" style="grid-template-columns:1fr"><label>Nueva contraseña<input id="rvP" type="password" autocomplete="new-password"></label><label>Confirmar nueva contraseña<input id="rvP2" type="password" autocomplete="new-password"></label></div><div style="display:flex;gap:10px;margin-top:12px"><button class="b" onclick="doResetVendorPw('${id}')">Guardar</button><button class="l" onclick="closeModal()">Cancelar</button></div>`);
+ setTimeout(()=>{const e=$('#rvP');if(e)e.focus()},0)}
+async function doResetVendorPw(id){
+ if(!isAdmin())return;
+ const nw=$('#rvP').value,nw2=$('#rvP2').value;
+ if(!nw)return msg('Escribe la nueva contraseña.');
+ if(nw.length<4)return msg('La nueva contraseña debe tener al menos 4 caracteres.');
+ if(nw!=nw2)return msg('Las contraseñas no coinciden.');
+ try{
+  const call=httpsCallable(functions,'resetVendorPassword');
+  await call({targetUid:id,newPassword:nw});
+  closeModal();msg('Contraseña actualizada.')
+ }catch(e){
+  const code=e&&e.code?String(e.code).replace('functions/',''):'';
+  if(code=='permission-denied')msg('Solo puedes restablecer la contraseña de cuentas de vendedor, no de otros administradores.');
+  else if(code=='unauthenticated')msg('Tu sesión expiró. Vuelve a iniciar sesión e intenta de nuevo.');
+  else if(code=='not-found')msg('No encuentro esa cuenta de usuario.');
+  else if(code=='invalid-argument')msg('Revisa la contraseña escrita.');
+  else showErr(e)
+ }}
+
 function uView(){
- const rows=S.users.map(u=>`<tr><td><b>${esc(u.name)}</b>${session&&session.id==u.id?' <span class="m">(tú)</span>':''}</td><td>${esc(u.username)}</td><td>${u.role=='admin'?'Administrador':'Vendedor'}</td><td>${u.active===false?'Inactivo':'Activo'}</td><td class="r"><button class="l" onclick="editUser('${u.id}')">Editar</button> <button class="l" onclick="delUser('${u.id}')">Eliminar</button></td></tr>`).join('')||'<tr><td colspan="5">Aún no hay usuarios.</td></tr>';
- return `<section><h2>Usuarios</h2><p class="m" style="margin-bottom:10px">Crea un perfil para cada vendedor. Los vendedores solo pueden ver inventario, entradas, salidas y deudores (sin modificarlos) y tienen acceso total a Ventas. Los administradores tienen acceso completo, incluyendo Nómina y Conteo físico. El nombre de usuario no se puede cambiar después de creado; si alguien olvida su contraseña, créale una cuenta nueva y desactiva la anterior.</p><div class="sc"><table><tr><th>Nombre</th><th>Usuario</th><th>Rol</th><th>Estado</th><th></th></tr>${rows}</table></div><div class="g" style="margin-top:12px"><label>Nombre<input id="unN" placeholder="Ej. María Pérez"></label><label>Usuario<input id="unU" autocomplete="off"></label><label>Contraseña<input id="unP" type="password" autocomplete="new-password"></label><label>Rol<select id="unR"><option value="vendedor">Vendedor</option><option value="admin">Administrador</option></select></label></div><button class="b" onclick="addUser()">Crear usuario</button></section>`}
+ const rows=S.users.map(u=>`<tr><td><b>${esc(u.name)}</b>${session&&session.id==u.id?' <span class="m">(tú)</span>':''}</td><td>${esc(u.username)}</td><td>${u.role=='admin'?'Administrador':'Vendedor'}</td><td>${u.active===false?'Inactivo':'Activo'}</td><td class="r"><button class="l" onclick="editUser('${u.id}')">Editar</button> ${u.role=='vendedor'?`<button class="l" onclick="resetVendorPw('${u.id}')">Restablecer contraseña</button> `:''}<button class="l" onclick="delUser('${u.id}')">Eliminar</button></td></tr>`).join('')||'<tr><td colspan="5">Aún no hay usuarios.</td></tr>';
+ return `<section><h2>Usuarios</h2><p class="m" style="margin-bottom:10px">Crea un perfil para cada vendedor. Los vendedores solo pueden ver inventario, entradas, salidas y deudores (sin modificarlos) y tienen acceso total a Ventas. Los administradores tienen acceso completo, incluyendo Nómina y Conteo físico. El nombre de usuario no se puede cambiar después de creado. Cada administrador puede cambiar su propia contraseña desde "Mi cuenta"; ningún administrador puede cambiar la contraseña de otro administrador. Cualquier administrador puede restablecer la contraseña de un vendedor con el botón "Restablecer contraseña".</p><div class="sc"><table><tr><th>Nombre</th><th>Usuario</th><th>Rol</th><th>Estado</th><th></th></tr>${rows}</table></div><div class="g" style="margin-top:12px"><label>Nombre<input id="unN" placeholder="Ej. María Pérez"></label><label>Usuario<input id="unU" autocomplete="off"></label><label>Contraseña<input id="unP" type="password" autocomplete="new-password"></label><label>Rol<select id="unR"><option value="vendedor">Vendedor</option><option value="admin">Administrador</option></select></label></div><button class="b" onclick="addUser()">Crear usuario</button></section>`}
 async function addUser(){
  if(!isAdmin())return;
  const name=$('#unN').value.trim(),username=$('#unU').value.trim(),p=$('#unP').value,role=$('#unR').value;
@@ -322,20 +350,20 @@ function delUser(id){
   try{await deleteDoc(doc(db,'users',id));render()}catch(e){showErr(e)}})}
 
 const stock=id=>S.mov.filter(m=>m.pid==id).reduce((a,m)=>a+m.u,0);
-function fmt(p,u){let r=u,o=[];[...p.pres].sort((a,b)=>b.q-a.q).forEach(x=>{const n=Math.floor(r/x.q);if(n>0){o.push(n+' × '+esc(x.n));r-=n*x.q}});return o.join(' + ')||'0'}
+function fmt(p,u){const neg=u<0;let r=Math.abs(u),o=[];[...p.pres].sort((a,b)=>b.q-a.q).forEach(x=>{const n=Math.floor(r/x.q);if(n>0){o.push(n+' × '+esc(x.n));r-=n*x.q}});const s=o.join(' + ')||'0';return neg?'−'+s:s}
 
 let iq='';
 function invRow(p){const u=stock(p.id),adm=isAdmin();
  const costCell=money(ucost(p.id));
  const priceCell=adm?`<input type="number" min="0" step="any" value="${rv(unitP(p))}" onchange="setUnitP('${p.id}',this.value)" aria-label="Precio de venta por unidad" style="width:110px">`:money(unitP(p));
  const presCell=p.pres.map((x,i)=>x.q>1?`${esc(x.n)} (${x.q} u): ${money(x.p)}`+(adm?` <button class="l" onclick="delPres('${p.id}',${i})">quitar</button>`:''):'').filter(Boolean).join('<br>')||'Solo unidad';
- return `<tr><td><b>${esc(p.name)}</b></td><td class="r">${u}</td><td>${fmt(p,u)}</td><td>${costCell}${adm?`<br><button class="l" onclick="adjustCost('${p.id}')">Ajustar costo</button>`:''}</td><td>${priceCell}</td><td class="m">${presCell}</td><td class="r">${adm?`<button class="l" onclick="pickP('${p.id}')">Embalar</button> <button class="l" onclick="delP('${p.id}')">Eliminar</button>`:''}</td></tr>`}
+ return `<tr><td><b>${esc(p.name)}</b></td><td class="r${u<0?' neg':''}">${u}</td><td${u<0?' class="neg"':''}>${fmt(p,u)}</td><td>${costCell}${adm?`<br><button class="l" onclick="adjustCost('${p.id}')">Ajustar costo</button>`:''}</td><td>${priceCell}</td><td class="m">${presCell}</td><td class="r">${adm?`<button class="l" onclick="pickP('${p.id}')">Embalar</button> <button class="l" onclick="delP('${p.id}')">Eliminar</button>`:''}</td></tr>`}
 function invRows(q){
  const prods=[...S.products].sort((a,b)=>a.name.localeCompare(b.name,'es')).filter(p=>!q||p.name.toLowerCase().includes(q.toLowerCase()));
  return prods.map(invRow).join('')||`<tr><td colspan="7">${q?'No hay productos que coincidan con la búsqueda.':'Aún no hay productos. Regístralos en Registrar entrada.'}</td></tr>`}
 function filterInv(){iq=$('#iqs').value;$('#iBody').innerHTML=invRows(iq)}
 function invView(){
- return `<section><h2>Productos y stock</h2>${isAdmin()?'<p class="m" style="margin-bottom:10px">Cambia el precio de venta por unidad directamente en la tabla; se guarda al salir de la casilla. El costo unitario no se escribe aquí directamente: se actualiza solo con cada entrada que registras en "Registrar entrada", o con el botón "Ajustar costo" si el precio cambió sin que compraras mercancía nueva.</p>':''}${S.products.length?`<label style="max-width:320px;margin-bottom:10px">Buscar producto<input id="iqs" value="${esc(iq)}" oninput="filterInv()" placeholder="Escribe el nombre..." autocomplete="off"></label>`:''}<div class="sc"><table><tr><th>Producto</th><th class="r">Stock (unidades)</th><th>Desglose</th><th>Costo unitario</th><th>Precio de venta (unidad)</th><th>Embalajes</th><th></th></tr><tbody id="iBody">${invRows(iq)}</tbody></table></div></section>
+ return `<section><h2>Productos y stock</h2>${isAdmin()?'<p class="m" style="margin-bottom:10px">Cambia el precio de venta por unidad directamente en la tabla; se guarda al salir de la casilla. El costo unitario no se escribe aquí directamente: se actualiza solo con cada entrada que registras en "Registrar entrada", o con el botón "Ajustar costo" si el precio cambió sin que compraras mercancía nueva. El sistema permite vender aunque el stock no alcance: si eso pasa, el stock queda en negativo (se ve en rojo) para que lo corrijas después en "Conteo físico".</p>':''}${S.products.length?`<label style="max-width:320px;margin-bottom:10px">Buscar producto<input id="iqs" value="${esc(iq)}" oninput="filterInv()" placeholder="Escribe el nombre..." autocomplete="off"></label>`:''}<div class="sc"><table><tr><th>Producto</th><th class="r">Stock (unidades)</th><th>Desglose</th><th>Costo unitario</th><th>Precio de venta (unidad)</th><th>Embalajes</th><th></th></tr><tbody id="iBody">${invRows(iq)}</tbody></table></div></section>
  ${isAdmin()?pricesView():''}`}
 
 function kView(){
@@ -439,7 +467,7 @@ function bgView(){
  <div style="display:grid;gap:20px;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));margin-bottom:10px;margin-top:14px">
   <div><h3 style="font-size:14px;margin:0 0 8px">Activos</h3><div class="sc"><table>
    <tr><td>Efectivo y transferencias disponibles</td><td class="r ${cash<0?'neg':''}">${sg(cash)}</td></tr>
-   <tr><td>Inventario (al costo)</td><td class="r">${money(invVal)}</td></tr>
+   <tr><td>Inventario (al costo)</td><td class="r ${invVal<0?'neg':''}">${sg(invVal)}</td></tr>
    <tr><td>Cuentas por cobrar</td><td class="r">${money(cxc)}</td></tr>
    <tr><td><b>Total activos</b></td><td class="r ${totActivos<0?'neg':''}"><b>${sg(totActivos)}</b></td></tr>
   </table></div></div>
@@ -618,14 +646,12 @@ function addLine(){
   if(!n||!(uq>0))return msg('Escribe el nombre de la presentación y cuántas unidades trae.');
   x=p.pres.find(z=>z.q==uq&&z.n.toLowerCase()==n.toLowerCase())||{n,q:uq,p:+pp};
  }else{x=p.pres[v];uq=x.q}
- if(q*uq>avail(p.id))return msg('Stock insuficiente: quedan '+avail(p.id)+' unidades disponibles.');
  if(!p.pres.includes(x))p.pres.push(x);
  if(x.p==null)x.p=+pp;
  C.lines.push({pid:p.id,name:p.name,pn:x.n,q,u:q*uq,p:+pp,sub:q*pp});render()}
 function delLine(i){C.lines.splice(i,1);render()}
 async function issue(){
  if(!C.lines.length)return msg('Agrega al menos un producto a la factura.');
- for(const l of C.lines){if(stock(l.pid)<C.lines.filter(z=>z.pid==l.pid).reduce((a,z)=>a+z.u,0))return msg('Stock insuficiente de '+l.name+'.')}
  const total=C.lines.reduce((a,l)=>a+l.sub,0),cliente=C.cliente.trim(),vendor=C.vendor.trim();
  if(!cliente)return msg('Escribe el nombre del cliente que compró.');
  if(!vendor)return msg('Escribe el nombre del vendedor/trabajador que atendió la venta.');
@@ -991,11 +1017,11 @@ function restore(file){
  r.readAsText(file)}
 
 function wipeAll(){
- if(!isAdmin())return;
+ if(!isSuperAdmin())return;
  openModal(`<h2 style="margin-top:0;color:var(--ng)">Eliminar todos los datos</h2><p class="m">Esto borrará de forma <b>permanente</b> todo el inventario, los movimientos, las facturas de venta, la nómina, las deudas y el flujo de dinero guardados en la nube. No se puede deshacer. Si quieres conservar esta información, primero haz una copia de seguridad con el botón "Guardar copia de seguridad".</p><p class="m">Las cuentas de usuario (los inicios de sesión) NO se eliminan.</p><p class="m" style="margin-top:10px">Para confirmar, escribe <b>ELIMINAR</b> en el siguiente campo:</p><div class="g" style="grid-template-columns:1fr;margin-top:6px"><label>Escribir para confirmar<input id="wipeConfirm" autocomplete="off"></label></div><p id="wipeInfo" class="m" style="color:var(--ng);min-height:16px"></p><div style="display:flex;gap:10px;margin-top:10px"><button class="b" style="background:var(--ng);box-shadow:none" onclick="doWipeAll()">Eliminar todo definitivamente</button><button class="l" onclick="closeModal()">Cancelar</button></div>`);
 }
 async function doWipeAll(){
- if(!isAdmin())return;
+ if(!isSuperAdmin())return;
  const box=$('#wipeConfirm');if(!box)return;
  if(box.value.trim().toUpperCase()!=='ELIMINAR'){$('#wipeInfo').textContent='Escribe ELIMINAR para confirmar.';return}
  closeModal();
@@ -1139,6 +1165,7 @@ function render(){
  document.querySelectorAll('nav button').forEach(b=>{b.hidden=!allowed.includes(b.dataset.t);b.classList.toggle('on',b.dataset.t==tab)});
  $('#sess').innerHTML=`Conectado como <b>${esc(session.name)}</b> (${session.role=='admin'?'Administrador':'Vendedor'}) · <button class="l" onclick="changeMyPw()">Cambiar contraseña</button> · <button class="l" onclick="logout()">Cerrar sesión</button>`;
  $('#adminTools').hidden=!isAdmin();
+ $('#wipeBtn').hidden=!isSuperAdmin();
  const nb=document.querySelector('nav button[data-t="d"]'),na=(isAdmin()?dAlerts():dAlerts().filter(d=>d.type=='r')).length;
  if(nb)nb.innerHTML='Deudas'+(na?`<span class="bd">${na}</span>`:'');
  $('#v').innerHTML=tab=='inv'?invView():tab=='fc'?fcView():tab=='in'?eView():tab=='out'?sView():tab=='k'?kView():tab=='c'?cView():tab=='f'?fView():tab=='n'?nView():tab=='d'?dView():tab=='bg'?bgView():uView();
@@ -1147,7 +1174,7 @@ function render(){
 document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{tab=b.dataset.t;render()});
 $('#mdBg').onclick=e=>{if(e.target.id=='mdBg')closeModal()};
 document.addEventListener('keydown',e=>{if(e.key=='Escape')closeModal()});
-Object.assign(window,{backup,restore,wipeAll,doWipeAll,downloadFinancialsXlsx,editWorker,delWorker,addWorker,saveWorker,closeModal,adjustCost,confirmAdjustCost,pickP,delP,delPres,setUnitP,setPresPrice,embalar,editUser,delUser,addUser,saveUser,filterInv,filterDebtsR,filterDebtsP,addDebt,addAbono,delDebt,delCash,addCash,delLine,addLine,issue,printInvoice,togglePay,updPriceProduct,delPayroll,logout,changeMyPw,doChangeMyPw,openReturn,fillAllReturn,updRetTotal,confirmReturn,filterFc,clearFcFilter,cancelInvoice,printPayroll});
+Object.assign(window,{backup,restore,wipeAll,doWipeAll,downloadFinancialsXlsx,editWorker,delWorker,addWorker,saveWorker,closeModal,adjustCost,confirmAdjustCost,pickP,delP,delPres,setUnitP,setPresPrice,embalar,editUser,delUser,addUser,saveUser,filterInv,filterDebtsR,filterDebtsP,addDebt,addAbono,delDebt,delCash,addCash,delLine,addLine,issue,printInvoice,togglePay,updPriceProduct,delPayroll,logout,changeMyPw,doChangeMyPw,resetVendorPw,doResetVendorPw,openReturn,fillAllReturn,updRetTotal,confirmReturn,filterFc,clearFcFilter,cancelInvoice,printPayroll});
 render();
 </script>
 </body>
