@@ -376,7 +376,7 @@ function invRow(p){const u=stock(p.id),adm=isAdmin();
   const parts=[1,2,3].filter(lv=>x['p'+lv]!=null).map(lv=>`P${lv}: ${money(x['p'+lv])}`).join(' · ')||'sin precio';
   return `${esc(x.n)} (${x.q} u): ${parts}`+(adm?` <button class="l" onclick="delPres('${p.id}',${i})">quitar</button>`:'')
  }).filter(Boolean).join('<br>')||'Solo unidad';
- return `<tr><td><b>${esc(p.name)}</b></td><td class="r${u<0?' neg':''}">${u}</td><td${u<0?' class="neg"':''}>${fmt(p,u)}</td><td>${costCell}${adm?`<br><button class="l" onclick="adjustCost('${p.id}')">Ajustar costo</button>`:''}</td><td>${priceCell}</td><td class="m">${presCell}</td><td class="r">${adm?`<button class="l" onclick="pickP('${p.id}')">Embalar</button> <button class="l" onclick="delP('${p.id}')">Eliminar</button>`:''}</td></tr>`}
+ return `<tr><td><b>${esc(p.name)}</b>${adm?`<br><button class="l" onclick="renameProduct('${p.id}')">Editar nombre</button>`:''}</td><td class="r${u<0?' neg':''}">${u}</td><td${u<0?' class="neg"':''}>${fmt(p,u)}</td><td>${costCell}${adm?`<br><button class="l" onclick="adjustCost('${p.id}')">Ajustar costo</button>`:''}</td><td>${priceCell}</td><td class="m">${presCell}</td><td class="r">${adm?`<button class="l" onclick="pickP('${p.id}')">Embalar</button> <button class="l" onclick="delP('${p.id}')">Eliminar</button>`:''}</td></tr>`}
 function invRows(q){
  const prods=[...S.products].sort((a,b)=>a.name.localeCompare(b.name,'es')).filter(p=>!q||p.name.toLowerCase().includes(q.toLowerCase()));
  return prods.map(invRow).join('')||`<tr><td colspan="7">${q?'No hay productos que coincidan con la búsqueda.':'Aún no hay productos. Regístralos en Registrar entrada.'}</td></tr>`}
@@ -1276,6 +1276,22 @@ function delPres(id,i){
  ask(`¿Quitar la presentación "${x.n}" de ${p.name}?`,async()=>{
   try{const pres=p.pres.filter((_,idx)=>idx!=i);await updateDoc(doc(db,'products',id),{pres});render()}
   catch(e){showErr(e)}})}
+function renameProduct(id){
+ if(!isAdmin())return;
+ const p=S.products.find(x=>x.id==id);if(!p)return;
+ openModal(`<h2 style="margin-top:0">Editar nombre</h2><p class="m" style="margin-bottom:10px">Cambia el nombre de "${esc(p.name)}". Se actualiza en todo el sistema (Inventario, Ventas, Conteo físico, etc.); las facturas y movimientos ya registrados conservan el nombre que tenían en su momento.</p><div class="g" style="grid-template-columns:1fr"><label>Nombre<input id="rnN" value="${esc(p.name)}"></label></div><div style="display:flex;gap:10px;margin-top:12px"><button class="b" onclick="confirmRenameProduct('${id}')">Guardar</button><button class="l" onclick="closeModal()">Cancelar</button></div>`);
+ setTimeout(()=>{const e=$('#rnN');if(e){e.focus();e.select()}},0)}
+async function confirmRenameProduct(id){
+ if(!isAdmin())return;
+ const p=S.products.find(x=>x.id==id);if(!p)return;
+ const name=$('#rnN').value.trim();
+ if(!name)return msg('Escribe el nombre del producto.');
+ const dup=findP(name);
+ if(dup&&dup.id!=id)return msg(`Ya existe otro producto llamado "${name}".`);
+ try{
+  await updateDoc(doc(db,'products',id),{name});
+  closeModal();msg(`Nombre actualizado a "${name}".`);render()
+ }catch(e){showErr(e)}}
 function newProduct(){
  if(!isAdmin())return;
  openModal(`<h2 style="margin-top:0">Nuevo producto</h2><p class="m" style="margin-bottom:10px">Úsalo para una venta rápida cuando el producto todavía no está ingresado. Se crea con 0 unidades en stock: si lo vendes de una vez, el stock quedará en negativo (en rojo) hasta que cuentes la mercancía real en "Conteo físico". Precios y costo son opcionales: puedes completarlos ahora o después, directamente en la tabla de Productos y stock o con "Ajustar costo".</p><div class="g" style="grid-template-columns:1fr"><label>Nombre<input id="npN" placeholder="Nombre del producto"></label></div><div class="g"><label>Precio 1<input id="npP1" type="number" min="0" placeholder="Opcional"></label><label>Precio 2<input id="npP2" type="number" min="0" placeholder="Opcional"></label><label>Precio 3<input id="npP3" type="number" min="0" placeholder="Opcional"></label></div><div class="g" style="grid-template-columns:1fr"><label>Costo unitario<input id="npC" type="number" min="0" placeholder="Opcional"></label></div><div style="display:flex;gap:10px;margin-top:12px"><button class="b" onclick="confirmNewProduct()">Crear producto</button><button class="l" onclick="closeModal()">Cancelar</button></div>`);
@@ -1344,7 +1360,7 @@ function render(){
 document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{tab=b.dataset.t;render()});
 $('#mdBg').onclick=e=>{if(e.target.id=='mdBg')closeModal()};
 document.addEventListener('keydown',e=>{if(e.key=='Escape')closeModal()});
-Object.assign(window,{backup,restore,wipeAll,doWipeAll,downloadFinancialsXlsx,editWorker,delWorker,addWorker,saveWorker,closeModal,adjustCost,confirmAdjustCost,pickP,delP,delPres,setUnitP,setPresPrice,embalar,editUser,delUser,addUser,saveUser,filterInv,filterDebtsR,filterDebtsP,addDebt,addAbono,delDebt,delCash,addCash,delLine,addLine,issue,printInvoice,togglePay,updPriceProduct,delPayroll,logout,changeMyPw,doChangeMyPw,resetVendorPw,doResetVendorPw,openReturn,fillAllReturn,updRetTotal,confirmReturn,filterFc,fcToday,fcAllDates,filterK,clearKFilter,cancelInvoice,printPayroll,toggleEntradaPay,printAbono,addLoan,addLoanAbono,delLoan,newProduct,confirmNewProduct});
+Object.assign(window,{backup,restore,wipeAll,doWipeAll,downloadFinancialsXlsx,editWorker,delWorker,addWorker,saveWorker,closeModal,adjustCost,confirmAdjustCost,pickP,delP,delPres,setUnitP,setPresPrice,embalar,editUser,delUser,addUser,saveUser,filterInv,filterDebtsR,filterDebtsP,addDebt,addAbono,delDebt,delCash,addCash,delLine,addLine,issue,printInvoice,togglePay,updPriceProduct,delPayroll,logout,changeMyPw,doChangeMyPw,resetVendorPw,doResetVendorPw,openReturn,fillAllReturn,updRetTotal,confirmReturn,filterFc,fcToday,fcAllDates,filterK,clearKFilter,cancelInvoice,printPayroll,toggleEntradaPay,printAbono,addLoan,addLoanAbono,delLoan,newProduct,confirmNewProduct,renameProduct,confirmRenameProduct});
 render();
 </script>
 </body>
