@@ -1391,7 +1391,7 @@ function entradaFiltered(){
   return true}).sort((x,y)=>y.t-x.t)}
 function entradaRows(){
  const list=entradaFiltered();
- return list.map(m=>{const p=S.products.find(x=>x.id==m.pid);return `<tr><td>${new Date(m.t).toLocaleString('es',{dateStyle:'short',timeStyle:'short'})}</td><td>${esc(p?p.name:(m.nm||'(eliminado)'))}</td><td>${esc(m.prov||'—')}</td><td class="r">${m.pq} u</td><td class="r">${m.cost!=null?money(m.cost):'—'}</td><td class="r">${m.retention?money(m.retention):'—'}</td></tr>`}).join('')||'<tr><td colspan="6">No hay entradas en el rango de fechas elegido.</td></tr>'}
+ return list.map(m=>{const p=S.products.find(x=>x.id==m.pid);return `<tr><td>${new Date(m.t).toLocaleString('es',{dateStyle:'short',timeStyle:'short'})}</td><td>${m.pf?('N° '+String(m.pf).padStart(4,'0')):'—'}</td><td>${esc(p?p.name:(m.nm||'(eliminado)'))}</td><td>${esc(m.prov||'—')}</td><td class="r">${m.pq} u</td><td class="r">${m.cost!=null?money(m.cost):'—'}</td><td class="r">${m.retention?money(m.retention):'—'}</td></tr>`}).join('')||'<tr><td colspan="7">No hay entradas en el rango de fechas elegido.</td></tr>'}
 function entradaSummary(list){
  let cost=0,ret=0;
  list.forEach(m=>{cost+=m.cost||0;ret+=m.retention||0});
@@ -1425,75 +1425,132 @@ function eAllDates(){
  const pv=$('#enProvBody');if(pv)pv.innerHTML=enProviderRows()}
 function entradaHist(){
  const searchBar=`<div class="g"><label>Desde<input type="date" id="eqFrom" value="${EQ.from}" onchange="filterE()"></label><label>Hasta<input type="date" id="eqTo" value="${EQ.to}" onchange="filterE()"></label></div><p style="margin:-4px 0 10px"><button class="l" onclick="eThisMonth()">Ver este mes</button> · <button class="l" onclick="eAllDates()">Ver todas las fechas</button></p>`;
- return `<section><h2>Historial de entradas</h2>${searchBar}<div class="kp" id="enKpis">${enSummaryHtml()}</div><h3 style="font-size:14px;margin:4px 0 8px">Retención por proveedor (periodo filtrado)</h3><div class="sc" style="margin-bottom:16px"><table><tr><th>Proveedor</th><th class="r">Retención</th></tr><tbody id="enProvBody">${enProviderRows()}</tbody></table></div><div class="sc"><table><tr><th>Fecha</th><th>Producto</th><th>Proveedor</th><th class="r">Unidades</th><th class="r">Costo total</th><th class="r">Retención</th></tr><tbody id="enBody">${entradaRows()}</tbody></table></div></section>`}
+ return `<section><h2>Historial de entradas</h2>${searchBar}<div class="kp" id="enKpis">${enSummaryHtml()}</div><h3 style="font-size:14px;margin:4px 0 8px">Retención por proveedor (periodo filtrado)</h3><div class="sc" style="margin-bottom:16px"><table><tr><th>Proveedor</th><th class="r">Retención</th></tr><tbody id="enProvBody">${enProviderRows()}</tbody></table></div><div class="sc"><table><tr><th>Fecha</th><th>N° Entrada</th><th>Producto</th><th>Proveedor</th><th class="r">Unidades</th><th class="r">Costo total</th><th class="r">Retención</th></tr><tbody id="enBody">${entradaRows()}</tbody></table></div></section>`}
+function splitAmount(total,weights){
+ const sumW=weights.reduce((a,b)=>a+b,0);
+ if(!(sumW>0))return weights.map(()=>0);
+ let acc=0;
+ return weights.map((w,i)=>{
+  if(i==weights.length-1)return Math.round((total-acc)*100)/100;
+  const v=Math.round(total*w/sumW*100)/100;
+  acc+=v;
+  return v})}
+const E={lines:[],prov:'',pay:'cash',term:'',retOn:false,retPct:'',ret:''};
+function entradaLineRows(){
+ return E.lines.map((l,i)=>`<tr><td>${esc(l.name)}${l.isNew?' <span class="m">(nuevo)</span>':''}</td><td class="r">${l.q} u</td><td class="r">${money(l.unitCost)}</td><td class="r">${money(l.sub)}</td><td class="r"><button class="l" onclick="delEntradaLine(${i})">Quitar</button></td></tr>`).join('')||'<tr><td colspan="5">Aún no has agregado productos a esta compra.</td></tr>'}
+function addEntradaLine(){
+ const name=$('#ep').value.trim();
+ if(!name)return msg('Escribe el nombre del producto.');
+ const q=Math.floor(+$('#eq').value);
+ if(!(q>0))return msg('Escribe una cantidad mayor a cero.');
+ const costRaw=$('#ec').value;
+ if(costRaw==='')return msg('Escribe el costo unitario de este producto.');
+ const unitCost=+costRaw;
+ if(!(unitCost>=0))return msg('Escribe un costo unitario válido.');
+ const p=findP(name);
+ const finalName=p?p.name:name;
+ if(E.lines.some(l=>l.name.toLowerCase()==finalName.toLowerCase()))return msg(`Ya agregaste "${finalName}" a esta compra. Quítalo de la lista de abajo si quieres cambiar su cantidad o costo, y agrégalo de nuevo.`);
+ const priceRaw1=$('#epv1').value,priceRaw2=$('#epv2').value,priceRaw3=$('#epv3').value;
+ E.lines.push({
+  pid:p?p.id:null,name:p?p.name:name,isNew:!p,
+  q,unitCost,sub:Math.round(q*unitCost*100)/100,
+  p1:priceRaw1!==''?Math.max(0,+priceRaw1):null,
+  p2:priceRaw2!==''?Math.max(0,+priceRaw2):null,
+  p3:priceRaw3!==''?Math.max(0,+priceRaw3):null});
+ render()}
+function delEntradaLine(i){E.lines.splice(i,1);render()}
+function updEntradaTotalsInfo(){
+ const e=$('#epayInfo');if(!e)return;
+ const total=E.lines.reduce((a,l)=>a+l.sub,0);
+ if($('#eretOn')&&$('#eretOn').checked){
+  const pct=+($('#eretPct')?$('#eretPct').value:0)||0;
+  if($('#eret'))$('#eret').value=(total>0&&pct>0)?Math.round(total*pct/100):''}
+ const rt=+($('#eret')?$('#eret').value:0)||0;
+ if(rt>0.004){
+  const net=Math.round((total-rt)*100)/100;
+  if(net<-0.004){e.textContent=`La retención (${money(rt)}) no puede ser mayor al total de la compra (${money(total)}).`;e.className='m neg'}
+  else{e.textContent=`Pagarás ${money(net)} después de descontar ${money(rt)} de retención del total de ${money(total)}.`;e.className='m'}
+ }else e.textContent=''}
 function eView(){
  if(!isAdmin())return entradaHist();
- return `<section><h2>Registrar entrada</h2><p class="m" style="margin-bottom:10px">Registra la compra en unidades. Si el producto ya existe se suma a su stock; si no, se crea como nuevo. Opcionalmente puedes definir aquí mismo hasta 3 precios de venta por unidad (precio 1, 2 y 3), para ahorrarte el paso de ir a Inventario. Las demás presentaciones (pacas, cajas, etc.) se definen en Inventario con "Embalar".</p><div class="g"><label>Producto<input id="ep" list="el" autocomplete="off" placeholder="Escribe el nombre"><datalist id="el">${S.products.map(p=>`<option value="${esc(p.name)}">`).join('')}</datalist></label><label>Cantidad (unidades)<input id="eq" type="number" min="1" value="1"></label><label>Costo unitario<input id="ec" type="number" min="0"></label><label>Costo total<input id="et" readonly placeholder="Unidades × costo unitario"></label></div><div class="g"><label>Precio 1 (unidad)<input id="epv1" type="number" min="0" placeholder="Opcional"></label><label>Precio 2 (unidad)<input id="epv2" type="number" min="0" placeholder="Opcional"></label><label>Precio 3 (unidad)<input id="epv3" type="number" min="0" placeholder="Opcional"></label></div><div class="g"><label>Proveedor (opcional, pero necesario si es a crédito o si aplicas retención)<input id="eprov" list="eprovl" placeholder="Ej. Distribuidora Nacional SAS"><datalist id="eprovl">${[...new Set(S.mov.filter(m=>m.type=='Compra'&&m.prov).map(m=>m.prov))].map(n=>`<option value="${esc(n)}">`).join('')}</datalist></label><label>¿Cómo pagaste esta compra?<select id="epay" onchange="toggleEntradaPay()"><option value="cash">De contado</option><option value="credit">A crédito</option></select></label><label id="eprtWrap" hidden>Plazo del crédito (días, opcional)<input id="eprt" type="number" min="0" placeholder="Ej. 30"></label></div><p id="epayNote" class="m" hidden>Esta compra quedará registrada en Deudas, en "Deudas (debes)", por el costo total de la compra. Necesitas escribir el costo unitario y el proveedor.</p><div class="g"><label style="flex-direction:row;align-items:center;gap:6px"><input type="checkbox" id="eretOn" style="width:auto" onchange="toggleEretMode()"> Calcular la retención por porcentaje</label></div><div class="g"><label id="eretPctWrap" hidden>% de retención<input id="eretPct" type="number" min="0" step="0.1" placeholder="Ej. 2.5"></label><label>Valor de la retención (opcional)<input id="eret" type="number" min="0" placeholder="0"></label></div><p class="m" style="margin:-6px 0 10px">Si en esta compra debías practicarle retención en la fuente al proveedor, actívala arriba y escribe el porcentaje para que el valor se calcule solo, o déjala desactivada y escribe tú mismo el valor exacto que viene en la factura. Se descuenta de lo que realmente le pagas, o de la deuda si es a crédito, y queda guardado para que puedas sacar el total retenido del mes.</p><p id="info"></p><button class="b" id="go">Registrar entrada</button></section>
+ const tot=E.lines.reduce((a,l)=>a+l.sub,0);
+ return `<section><h2>Registrar entrada</h2><p class="m" style="margin-bottom:10px">Agrega aquí uno o varios productos que vengan en la misma factura de compra, y luego regístrala completa de una sola vez. Si la pagas a crédito, queda una sola deuda por el total de la factura — no una por cada producto. Si un producto ya existe se suma a su stock; si no, se crea como nuevo. Opcionalmente puedes definir hasta 3 precios de venta por unidad para cada uno. Las demás presentaciones (pacas, cajas, etc.) se definen en Inventario con "Embalar".</p><div class="g"><label>Producto<input id="ep" list="el" autocomplete="off" placeholder="Escribe el nombre"><datalist id="el">${S.products.map(p=>`<option value="${esc(p.name)}">`).join('')}</datalist></label><label>Cantidad (unidades)<input id="eq" type="number" min="1" value="1"></label><label>Costo unitario<input id="ec" type="number" min="0"></label><label>Subtotal<input id="est" readonly placeholder="Unidades × costo unitario"></label></div><div class="g"><label>Precio 1 (unidad, opcional)<input id="epv1" type="number" min="0" placeholder="Opcional"></label><label>Precio 2 (unidad, opcional)<input id="epv2" type="number" min="0" placeholder="Opcional"></label><label>Precio 3 (unidad, opcional)<input id="epv3" type="number" min="0" placeholder="Opcional"></label></div><p id="einfo"></p><button class="b" onclick="addEntradaLine()">Agregar producto a la compra</button></section><section><h2>Productos de esta compra</h2><div class="sc"><table><tr><th>Producto</th><th class="r">Cantidad</th><th class="r">Costo unitario</th><th class="r">Subtotal</th><th></th></tr>${entradaLineRows()}<tr><td colspan="3" class="r"><b>Total</b></td><td class="r"><b>${money(tot)}</b></td><td></td></tr></table></div><div class="g" style="margin-top:12px"><label>Proveedor (opcional, pero necesario si es a crédito o si aplicas retención)<input id="eprov" list="eprovl" value="${esc(E.prov)}" placeholder="Ej. Distribuidora Nacional SAS"><datalist id="eprovl">${[...new Set(S.mov.filter(m=>m.type=='Compra'&&m.prov).map(m=>m.prov))].map(n=>`<option value="${esc(n)}">`).join('')}</datalist></label><label>¿Cómo pagaste esta compra?<select id="epay" onchange="toggleEntradaPay()"><option value="cash" ${E.pay=='cash'?'selected':''}>De contado</option><option value="credit" ${E.pay=='credit'?'selected':''}>A crédito</option></select></label><label id="eprtWrap" ${E.pay=='credit'?'':'hidden'}>Plazo del crédito (días, opcional)<input id="eprt" type="number" min="0" placeholder="Ej. 30" value="${esc(E.term)}"></label></div><p id="epayNote" class="m" ${E.pay=='credit'?'':'hidden'}>Esta compra quedará registrada en Deudas, en "Deudas (debes)", como una sola deuda por el total de la factura (menos la retención, si aplicas). Necesitas escribir el proveedor.</p><div class="g"><label style="flex-direction:row;align-items:center;gap:6px"><input type="checkbox" id="eretOn" style="width:auto" onchange="toggleEretMode()" ${E.retOn?'checked':''}> Calcular la retención por porcentaje</label></div><div class="g"><label id="eretPctWrap" ${E.retOn?'':'hidden'}>% de retención<input id="eretPct" type="number" min="0" step="0.1" placeholder="Ej. 2.5" value="${esc(E.retPct)}"></label><label>Valor de la retención (opcional)<input id="eret" type="number" min="0" placeholder="0" value="${esc(E.ret)}" ${E.retOn?'readonly':''}></label></div><p class="m" style="margin:-6px 0 10px">Si en esta compra debías practicarle retención en la fuente al proveedor, actívala arriba y escribe el porcentaje para que el valor se calcule solo, o déjala desactivada y escribe tú mismo el valor exacto. Se aplica sobre el total de toda la factura (no producto por producto), se descuenta de lo que realmente le pagas o de la deuda si es a crédito, y queda guardado para que puedas sacar el total retenido del mes.</p><p id="epayInfo" class="m" style="margin:-6px 0 10px"></p><p style="margin-top:12px"><button class="b" onclick="confirmEntrada()">Registrar entrada</button></p></section>
  ${entradaHist()}`}
 function toggleEntradaPay(){
- const credit=$('#epay')&&$('#epay').value=='credit';
+ E.pay=$('#epay')?$('#epay').value:'cash';
+ const credit=E.pay=='credit';
  if($('#eprtWrap'))$('#eprtWrap').hidden=!credit;
  if($('#epayNote'))$('#epayNote').hidden=!credit}
 function toggleEretMode(){
- const on=$('#eretOn')&&$('#eretOn').checked;
- if($('#eretPctWrap'))$('#eretPctWrap').hidden=!on;
- if($('#eret'))$('#eret').readOnly=on;
- if(typeof window.updEntradaInfo=='function')window.updEntradaInfo()}
+ E.retOn=!!($('#eretOn')&&$('#eretOn').checked);
+ if($('#eretPctWrap'))$('#eretPctWrap').hidden=!E.retOn;
+ if($('#eret'))$('#eret').readOnly=E.retOn;
+ updEntradaTotalsInfo()}
 function wireE(){
- if(!isAdmin()||!$('#go'))return;
+ if(!isAdmin()||!$('#einfo'))return;
  const upd=()=>{const name=$('#ep').value.trim(),p=findP(name),q=Math.floor(+$('#eq').value)||0,c=$('#ec').value;
   const totalCost=q>0&&c!==''?q*+c:null;
-  $('#et').value=totalCost!=null?money(totalCost):'';
-  if($('#eretOn')&&$('#eretOn').checked){
-   const pct=+($('#eretPct')?$('#eretPct').value:0)||0;
-   if($('#eret'))$('#eret').value=(totalCost!=null&&pct>0)?Math.round(totalCost*pct/100):''}
-  const rt=$('#eret')?(+$('#eret').value||0):0;
+  $('#est').value=totalCost!=null?money(totalCost):'';
   let t=!name?'Escribe el nombre. Si el producto ya existe, se suma al stock; si no, se crea como nuevo.':p?`Se sumará a «${p.name}»: stock ${stock(p.id)} → ${stock(p.id)+q} u`:'Producto nuevo: se creará en el inventario.';
-  if(rt>0.004&&totalCost!=null)t+=` · Pagarás ${money(Math.max(0,totalCost-rt))} después de descontar ${money(rt)} de retención.`;
-  $('#info').textContent=t};
- window.updEntradaInfo=upd;
- ['#ep','#eq','#ec','#eret','#eretPct'].forEach(k=>{if($(k))$(k).oninput=upd});upd();
+  $('#einfo').textContent=t};
+ ['#ep','#eq','#ec'].forEach(k=>{if($(k))$(k).oninput=upd});upd();
+ if($('#eprov'))$('#eprov').oninput=()=>{E.prov=$('#eprov').value};
+ if($('#eprt'))$('#eprt').oninput=()=>{E.term=$('#eprt').value};
+ if($('#eret'))$('#eret').oninput=()=>{E.ret=$('#eret').value;updEntradaTotalsInfo()};
+ if($('#eretPct'))$('#eretPct').oninput=()=>{E.retPct=$('#eretPct').value;updEntradaTotalsInfo()};
  toggleEntradaPay();
- $('#go').onclick=async()=>{
-  if(!isAdmin())return;
-  const name=$('#ep').value.trim(),q=Math.floor(+$('#eq').value),costRaw=$('#ec').value,
-   priceRaw1=$('#epv1').value,priceRaw2=$('#epv2').value,priceRaw3=$('#epv3').value,
-   payType=$('#epay').value,provName=$('#eprov').value.trim(),provTerm=$('#eprt').value,retRaw=$('#eret')?$('#eret').value:'';
-  if(!name)return msg('Escribe el nombre del producto.');
-  if(!(q>0))return msg('Escribe una cantidad mayor a cero.');
-  if(payType=='credit'){
-   if(costRaw==='')return msg('Escribe el costo unitario: lo necesitas para registrar la deuda por el costo total de la compra.');
-   if(!provName)return msg('Escribe a quién le debes esta compra.')}
-  const ret=Math.max(0,+retRaw||0);
-  if(ret>0.004&&costRaw==='')return msg('Para registrar una retención en la fuente necesitas escribir el costo unitario de la compra.');
-  if(ret>0.004&&!provName)return msg('Escribe el nombre del proveedor: lo necesitas para poder reportar la retención por proveedor.');
-  const costCheck=costRaw!==''?q*+costRaw:null;
-  if(ret>0.004&&costCheck!=null&&ret>costCheck+0.004)return msg('La retención en la fuente no puede ser mayor al costo total de la compra ('+money(costCheck)+').');
-  try{
-   let p=findP(name);const nuevo=!p;let pid;
-   const priceVal1=priceRaw1!==''?Math.max(0,+priceRaw1):null;
-   const priceVal2=priceRaw2!==''?Math.max(0,+priceRaw2):null;
-   const priceVal3=priceRaw3!==''?Math.max(0,+priceRaw3):null;
-   if(nuevo){const ref=await addDoc(collection(db,'products'),{name,pres:[{n:'Unidad',q:1,p1:priceVal1,p2:priceVal2,p3:priceVal3}]});pid=ref.id}
-   else{
-    pid=p.id;
-    if(priceVal1!=null||priceVal2!=null||priceVal3!=null){
-     const pres=p.pres.map(x=>({...x})),u=pres.find(x=>x.q==1);
-     if(u){if(priceVal1!=null)u.p1=priceVal1;if(priceVal2!=null)u.p2=priceVal2;if(priceVal3!=null)u.p3=priceVal3}
-     else pres.unshift({n:'Unidad',q:1,p1:priceVal1,p2:priceVal2,p3:priceVal3});
-     await updateDoc(doc(db,'products',pid),{pres})}}
-   const cost=costRaw!==''?q*+costRaw:null;
-   if(cost!==null){
-    await updateDoc(doc(db,'products',pid),{cost:cost/q})}
-   await addDoc(collection(db,'movements'),{t:Date.now(),pid,nm:name,type:'Compra',pn:'Unidad',pq:q,u:q,tot:null,cost,retention:cost!=null?ret:0,prov:provName||null});
-   let debtMsg='';
-   if(payType=='credit'&&cost!=null){
-    const owed=Math.max(0,cost-ret);
-    await addDoc(collection(db,'debts'),{type:'p',name:provName,amount:owed,date:Date.now(),term:provTerm!==''?Math.max(0,Math.floor(+provTerm)):null,note:`Compra a crédito: ${name} (${q} u)`+(ret>0.004?` · Retención: ${money(ret)}`:''),payments:[]});
-    debtMsg=' Se registró la deuda con '+provName+' por '+money(owed)+'.'}
-   const retMsg=(cost!=null&&ret>0.004)?' Se registró una retención en la fuente de '+money(ret)+'.':'';
-   msg((nuevo?'Producto nuevo creado y entrada registrada.':'Entrada registrada: el stock se actualizó.')+debtMsg+retMsg);render()
-  }catch(e){showErr(e)}}}
+ updEntradaTotalsInfo()}
+async function confirmEntrada(){
+ if(!isAdmin())return;
+ if(!E.lines.length)return msg('Agrega al menos un producto a esta compra.');
+ const total=Math.round(E.lines.reduce((a,l)=>a+l.sub,0)*100)/100;
+ const provName=$('#eprov').value.trim(),payType=$('#epay').value,provTerm=$('#eprt').value;
+ if(payType=='credit'&&!provName)return msg('Escribe a quién le debes esta compra.');
+ const ret=Math.max(0,+($('#eret')?$('#eret').value:0)||0);
+ if(ret>0.004&&!provName)return msg('Escribe el nombre del proveedor: lo necesitas para poder reportar la retención por proveedor.');
+ if(ret>total+0.004)return msg('La retención en la fuente no puede ser mayor al total de la compra ('+money(total)+').');
+ const lines=E.lines.slice(),t=Date.now();
+ const retShares=splitAmount(Math.round(ret*100)/100,lines.map(l=>l.sub));
+ let n,owed=0;
+ try{
+  await runTransaction(db,async tx=>{
+   const cfgRef=doc(db,'config','main');
+   const cfgSnap=await tx.get(cfgRef);
+   const seq=(cfgSnap.exists()&&cfgSnap.data().entradaSeq)||0;
+   n=seq+1;
+   tx.update(cfgRef,{entradaSeq:n});
+   lines.forEach((l,i)=>{
+    let pid=l.pid;
+    if(l.isNew){
+     const pRef=doc(collection(db,'products'));
+     tx.set(pRef,{name:l.name,pres:[{n:'Unidad',q:1,p1:l.p1,p2:l.p2,p3:l.p3}],cost:l.unitCost});
+     pid=pRef.id
+    }else{
+     const updates={cost:l.unitCost};
+     if(l.p1!=null||l.p2!=null||l.p3!=null){
+      const p=S.products.find(x=>x.id==l.pid);
+      if(p){
+       const pres=p.pres.map(x=>({...x})),u=pres.find(x=>x.q==1);
+       if(u){if(l.p1!=null)u.p1=l.p1;if(l.p2!=null)u.p2=l.p2;if(l.p3!=null)u.p3=l.p3}
+       else pres.unshift({n:'Unidad',q:1,p1:l.p1,p2:l.p2,p3:l.p3});
+       updates.pres=pres}}
+     tx.update(doc(db,'products',l.pid),updates)}
+    const mRef=doc(collection(db,'movements'));
+    tx.set(mRef,{t,pid,nm:l.name,type:'Compra',pn:'Unidad',pq:l.q,u:l.q,tot:null,cost:l.sub,retention:retShares[i]||0,prov:provName||null,pf:n})
+   });
+   if(payType=='credit'){
+    owed=Math.max(0,Math.round((total-ret)*100)/100);
+    if(owed>0.004){
+     const dRef=doc(collection(db,'debts'));
+     const itemsTxt=lines.map(l=>`${l.q}×${l.name}`).join(', ');
+     tx.set(dRef,{type:'p',name:provName,amount:owed,date:t,term:provTerm!==''?Math.max(0,Math.floor(+provTerm)):null,note:`Entrada N° ${String(n).padStart(4,'0')}: ${itemsTxt}`+(ret>0.004?` · Retención: ${money(ret)}`:''),payments:[],f:n})}}
+  });
+  const debtMsg=(payType=='credit'&&owed>0.004)?` Se registró una sola deuda con ${provName} por ${money(owed)} (Entrada N° ${String(n).padStart(4,'0')}).`:'';
+  const retMsg=ret>0.004?' Se registró una retención en la fuente de '+money(ret)+'.':'';
+  msg(`Entrada N° ${String(n).padStart(4,'0')} registrada con ${lines.length} producto${lines.length>1?'s':''}.`+debtMsg+retMsg);
+  E.lines=[];E.prov='';E.pay='cash';E.term='';E.retOn=false;E.retPct='';E.ret='';
+  render()
+ }catch(e){showErr(e)}}
 
 function openModal(html){$('#mdBox').innerHTML=html;$('#mdBg').hidden=false}
 function closeModal(){$('#mdBg').hidden=true;$('#mdBox').innerHTML=''}
@@ -1637,7 +1694,7 @@ function render(){
 document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{tab=b.dataset.t;render()});
 $('#mdBg').onclick=e=>{if(e.target.id=='mdBg')closeModal()};
 document.addEventListener('keydown',e=>{if(e.key=='Escape')closeModal()});
-Object.assign(window,{backup,restore,wipeAll,doWipeAll,downloadFinancialsXlsx,editWorker,delWorker,addWorker,saveWorker,closeModal,adjustCost,confirmAdjustCost,pickP,delP,delPres,setUnitP,setPresPrice,embalar,editUser,delUser,addUser,saveUser,filterInv,filterDebtsR,filterDebtsP,addDebt,addAbono,delDebt,delCash,addCash,delLine,addLine,issue,printInvoice,togglePay,updPriceProduct,delPayroll,logout,changeMyPw,doChangeMyPw,resetVendorPw,doResetVendorPw,openReturn,fillAllReturn,updRetTotal,confirmReturn,filterFc,fcToday,fcAllDates,filterK,clearKFilter,cancelInvoice,printPayroll,toggleEntradaPay,printAbono,addLoan,addLoanAbono,delLoan,newProduct,confirmNewProduct,renameProduct,confirmRenameProduct,editPres,confirmEditPres,openExchange,syncExchangeRet,addExchangeLine,delExchangeLine,confirmExchange,filterE,eThisMonth,eAllDates,toggleEretMode,toggleRetMode});
+Object.assign(window,{backup,restore,wipeAll,doWipeAll,downloadFinancialsXlsx,editWorker,delWorker,addWorker,saveWorker,closeModal,adjustCost,confirmAdjustCost,pickP,delP,delPres,setUnitP,setPresPrice,embalar,editUser,delUser,addUser,saveUser,filterInv,filterDebtsR,filterDebtsP,addDebt,addAbono,delDebt,delCash,addCash,delLine,addLine,issue,printInvoice,togglePay,updPriceProduct,delPayroll,logout,changeMyPw,doChangeMyPw,resetVendorPw,doResetVendorPw,openReturn,fillAllReturn,updRetTotal,confirmReturn,filterFc,fcToday,fcAllDates,filterK,clearKFilter,cancelInvoice,printPayroll,toggleEntradaPay,printAbono,addLoan,addLoanAbono,delLoan,newProduct,confirmNewProduct,renameProduct,confirmRenameProduct,editPres,confirmEditPres,openExchange,syncExchangeRet,addExchangeLine,delExchangeLine,confirmExchange,filterE,eThisMonth,eAllDates,toggleEretMode,toggleRetMode,addEntradaLine,delEntradaLine,confirmEntrada});
 render();
 </script>
 </body>
