@@ -466,20 +466,25 @@ function cashRows(){
   if(pay.cash)r.push({t:f.t,k:'in',cat:'Ventas',txt:`${desc} (efectivo)`,a:pay.cash});
   if(pay.transfer)r.push({t:f.t,k:'in',cat:'Ventas',txt:`${desc} (transferencia)`,a:pay.transfer})});
  S.mov.forEach(m=>{if(m.t<a||m.t>b)return;const p=S.products.find(x=>x.id==m.pid),nm=p?p.name:(m.nm||'');
-  if(m.type=='Compra'&&m.cost!=null)r.push({t:m.t,k:'out',cat:'Compras de mercancía',txt:`${m.pq} × ${m.pn} · ${nm}`,a:m.cost})});
+  if(m.type=='Compra'&&m.cost!=null)r.push({t:m.t,k:'out',cat:'Compras de mercancía',txt:`${m.pq} × ${m.pn} · ${nm}`+(m.retention?` (se descontó retención de ${money(m.retention)})`:''),a:Math.max(0,m.cost-(m.retention||0))})});
  S.cash.forEach(c=>{if(c.t>=a&&c.t<=b)r.push({t:c.t,k:c.k,cat:esc(c.c),txt:c.k=='in'?'Otro ingreso':'Otro egreso',a:c.a})});
  return r.sort((x,y)=>y.t-x.t)}
 function salesByMethod(){
  const a=new Date(R.from+'T00:00:00').getTime(),b=new Date(R.to+'T23:59:59.999').getTime();
- let cash=0,transfer=0,credit=0;
- S.inv.forEach(f=>{if(f.t<a||f.t>b)return;const pay=f.pay||{cash:f.total,transfer:0,credit:0};cash+=pay.cash||0;transfer+=pay.transfer||0;credit+=pay.credit||0});
- return{cash,transfer,credit}}
+ let cash=0,transfer=0,credit=0,retention=0;
+ S.inv.forEach(f=>{if(f.t<a||f.t>b)return;const pay=f.pay||{cash:f.total,transfer:0,credit:0,retention:0};cash+=pay.cash||0;transfer+=pay.transfer||0;credit+=pay.credit||0;retention+=pay.retention||0});
+ return{cash,transfer,credit,retention}}
+function purchasesRetention(){
+ const a=new Date(R.from+'T00:00:00').getTime(),b=new Date(R.to+'T23:59:59.999').getTime();
+ let ret=0;
+ S.mov.forEach(m=>{if(m.t<a||m.t>b)return;if(m.type=='Compra')ret+=m.retention||0});
+ return ret}
 function fView(){
- const r=cashRows(),sum=k=>r.filter(x=>x.k==k).reduce((s,x)=>s+x.a,0),I=sum('in'),E=sum('out'),by={},sm=salesByMethod();
+ const r=cashRows(),sum=k=>r.filter(x=>x.k==k).reduce((s,x)=>s+x.a,0),I=sum('in'),E=sum('out'),by={},sm=salesByMethod(),pret=purchasesRetention();
  r.forEach(x=>{by[x.cat]=(by[x.cat]||0)+(x.k=='in'?x.a:-x.a)});
  const cat=Object.entries(by).map(([c,v])=>`<tr><td>${c}</td><td class="r ${v<0?'neg':'pos'}">${money(v)}</td></tr>`).join('')||'<tr><td colspan="2">Sin movimientos de dinero en este periodo.</td></tr>';
  const rows=r.map(x=>`<tr><td>${new Date(x.t).toLocaleDateString('es')}</td><td>${x.cat}</td><td>${esc(x.txt)}</td><td class="r ${x.k=='in'?'pos':'neg'}">${x.k=='in'?'+':'−'}${money(x.a)}</td></tr>`).join('')||'<tr><td colspan="4">Sin movimientos.</td></tr>';
- return `<section><h2>Flujo de dinero</h2><div class="g"><label>Desde<input type="date" id="fd" value="${R.from}"></label><label>Hasta<input type="date" id="fh" value="${R.to}"></label></div><div class="kp"><div><span class="m">Entró</span><b class="pos">${money(I)}</b></div><div><span class="m">Salió</span><b class="neg">${money(E)}</b></div><div><span class="m">Balance del periodo</span><b class="${I-E<0?'neg':'pos'}">${money(I-E)}</b></div></div><p class="m" style="margin-bottom:6px">De las ventas del periodo, cuánto debió entrar por cada medio de pago:</p><div class="kp"><div><span class="m">Ventas en efectivo</span><b class="pos">${money(sm.cash)}</b></div><div><span class="m">Ventas por transferencia</span><b class="pos">${money(sm.transfer)}</b></div><div><span class="m">Ventas a crédito (pendientes)</span><b style="color:var(--ac)">${money(sm.credit)}</b></div></div><div class="sc"><table><tr><th>Concepto</th><th class="r">Neto</th></tr>${cat}</table></div></section><section><h2>Detalle del periodo</h2><div class="sc"><table><tr><th>Fecha</th><th>Categoría</th><th>Detalle</th><th class="r">Monto</th></tr>${rows}</table></div></section><section><h2>Registrar otro ingreso</h2><p class="m" style="margin-bottom:10px">Las ventas y las compras con costo entran solas, y los gastos se registran en Salidas. Aquí agrega ingresos que no sean ventas.</p><div class="g"><label>Fecha<input type="date" id="cf" value="${ld(new Date())}"></label><label>Concepto<input id="cc" placeholder="Ej. Aporte del dueño"></label><label>Monto<input id="ca" type="number" min="0"></label></div><button class="b" onclick="addCash('in')">Registrar ingreso</button></section>`}
+ return `<section><h2>Flujo de dinero</h2><div class="g"><label>Desde<input type="date" id="fd" value="${R.from}"></label><label>Hasta<input type="date" id="fh" value="${R.to}"></label></div><div class="kp"><div><span class="m">Entró</span><b class="pos">${money(I)}</b></div><div><span class="m">Salió</span><b class="neg">${money(E)}</b></div><div><span class="m">Balance del periodo</span><b class="${I-E<0?'neg':'pos'}">${money(I-E)}</b></div></div><p class="m" style="margin-bottom:6px">De las ventas del periodo, cuánto debió entrar por cada medio de pago:</p><div class="kp"><div><span class="m">Ventas en efectivo</span><b class="pos">${money(sm.cash)}</b></div><div><span class="m">Ventas por transferencia</span><b class="pos">${money(sm.transfer)}</b></div><div><span class="m">Ventas a crédito (pendientes)</span><b style="color:var(--ac)">${money(sm.credit)}</b></div><div><span class="m">Retención que te practicaron (ventas)</span><b style="color:var(--ac)">${money(sm.retention)}</b></div><div><span class="m">Retención que tú practicaste (compras)</span><b style="color:var(--ac)">${money(pret)}</b></div></div><div class="sc"><table><tr><th>Concepto</th><th class="r">Neto</th></tr>${cat}</table></div></section><section><h2>Detalle del periodo</h2><div class="sc"><table><tr><th>Fecha</th><th>Categoría</th><th>Detalle</th><th class="r">Monto</th></tr>${rows}</table></div></section><section><h2>Registrar otro ingreso</h2><p class="m" style="margin-bottom:10px">Las ventas y las compras con costo entran solas, y los gastos se registran en Salidas. Aquí agrega ingresos que no sean ventas.</p><div class="g"><label>Fecha<input type="date" id="cf" value="${ld(new Date())}"></label><label>Concepto<input id="cc" placeholder="Ej. Aporte del dueño"></label><label>Monto<input id="ca" type="number" min="0"></label></div><button class="b" onclick="addCash('in')">Registrar ingreso</button></section>`}
 function wireF(){$('#fd').onchange=()=>{if($('#fd').value){R.from=$('#fd').value;render()}};$('#fh').onchange=()=>{if($('#fh').value){R.to=$('#fh').value;render()}}}
 async function addCash(k){
  if(!isAdmin())return;
@@ -494,7 +499,7 @@ function delCash(id){
 function cashAllTime(){
  let I=0,E=0;
  S.inv.forEach(f=>{const pay=f.pay||{cash:f.total,transfer:0,credit:0};I+=(pay.cash||0)+(pay.transfer||0)});
- S.mov.forEach(m=>{if(m.type=='Compra'&&m.cost!=null)E+=m.cost});
+ S.mov.forEach(m=>{if(m.type=='Compra'&&m.cost!=null)E+=Math.max(0,m.cost-(m.retention||0))});
  S.cash.forEach(c=>{if(c.k=='in')I+=c.a;else E+=c.a});
  return{in:I,out:E,net:I-E}}
 function inventoryValue(){return S.products.reduce((a,p)=>{const u=stock(p.id),c=ucost(p.id);return a+(c!=null?u*c:0)},0)}
@@ -612,18 +617,34 @@ function downloadFinancialsXlsx(){
  XLSX.writeFile(wb,'estados-financieros-'+ld(new Date())+'.xlsx');
  msg('Excel descargado.')}
 
-const C={cliente:'',vendor:'',lines:[],pm:'cash',pc:'',pt:'',pcr:'',pterm:''};
+const C={cliente:'',vendor:'',lines:[],pm:'cash',pc:'',pt:'',pcr:'',pterm:'',ret:'',retOn:false,retPct:''};
 function togglePay(){
  C.pm=$('#payM').value;
  $('#payMix').hidden=C.pm!='mix';
  $('#payCreditNote').hidden=C.pm!='credit';
  $('#payTermBox').hidden=!(C.pm=='credit'||C.pm=='mix');
  updPayInfo()}
+function toggleRetMode(){
+ C.retOn=!!($('#payRetOn')&&$('#payRetOn').checked);
+ if($('#payRetPctWrap'))$('#payRetPctWrap').hidden=!C.retOn;
+ if($('#payRet'))$('#payRet').readOnly=C.retOn;
+ updPayInfo()}
 function updPayInfo(){
  const e=$('#payInfo');if(!e)return;
- if(C.pm!='mix'){e.textContent='';return}
- const tot=C.lines.reduce((a,l)=>a+l.sub,0),c=+$('#payCash').value||0,t=+$('#payTransfer').value||0,cr=+$('#payCreditAmt').value||0,rest=Math.round((tot-c-t-cr)*100)/100;
- if(rest==0){e.textContent=`Efectivo ${money(c)} + Transferencia ${money(t)}`+(cr>0?` + Crédito ${money(cr)}`:'')+` = Total ${money(tot)}. Cuadra correctamente.`;e.className='m pos'}
+ const tot=C.lines.reduce((a,l)=>a+l.sub,0);
+ if($('#payRetOn')&&$('#payRetOn').checked){
+  const pct=+($('#payRetPct')?$('#payRetPct').value:0)||0;
+  if($('#payRet'))$('#payRet').value=pct>0?Math.round(tot*pct/100):''}
+ const rt=+($('#payRet')?$('#payRet').value:0)||0;
+ if(C.pm!='mix'){
+  if(rt>0.004){
+   const net=Math.round((tot-rt)*100)/100,label=C.pm=='cash'?'efectivo':C.pm=='transfer'?'transferencia':'crédito';
+   if(net<-0.004){e.textContent=`La retención (${money(rt)}) no puede ser mayor al total de la factura (${money(tot)}).`;e.className='m neg'}
+   else{e.textContent=`Recibirás ${money(net)} en ${label} (se descuentan ${money(rt)} de retención en la fuente del total de ${money(tot)}).`;e.className='m'}
+  }else e.textContent='';
+  return}
+ const c=+$('#payCash').value||0,t=+$('#payTransfer').value||0,cr=+$('#payCreditAmt').value||0,rest=Math.round((tot-c-t-cr-rt)*100)/100;
+ if(rest==0){e.textContent=`Efectivo ${money(c)} + Transferencia ${money(t)}`+(cr>0?` + Crédito ${money(cr)}`:'')+(rt>0?` + Retención ${money(rt)}`:'')+` = Total ${money(tot)}. Cuadra correctamente.`;e.className='m pos'}
  else if(rest>0){e.textContent=`Falta distribuir ${money(rest)} del total (${money(tot)}).`;e.className='m neg'}
  else{e.textContent=`Te pasaste por ${money(-rest)} del total (${money(tot)}).`;e.className='m neg'}}
 const fno=n=>String(n).padStart(4,'0');
@@ -639,12 +660,14 @@ function delP(id){
   }catch(e){showErr(e)}})}
 let fcQ={text:'',from:ld(new Date()),to:ld(new Date())};
 function invoiceRow(f){
- const pay=f.pay||{cash:f.total,transfer:0,credit:0},payTxt=pay.credit?`Crédito (${money(pay.credit)})`:!pay.transfer?'Efectivo':!pay.cash?'Transferencia':`Mixto: ${money(pay.cash)} efec. + ${money(pay.transfer)} transf.`;
+ const pay=f.pay||{cash:f.total,transfer:0,credit:0,retention:0},payTxt=(pay.credit?`Crédito (${money(pay.credit)})`:!pay.transfer?'Efectivo':!pay.cash?'Transferencia':`Mixto: ${money(pay.cash)} efec. + ${money(pay.transfer)} transf.`)+(pay.retention?`<div class="m">Retefuente: ${money(pay.retention)}</div>`:'');
  const retTot=returnedTotalForInvoice(f.n),cancelled=retTot>=f.total-0.01;
- const retNote=cancelled?'<div class="neg"><b>ANULADA</b></div>':(retTot>0?`<div class="m neg">Devuelto: ${money(retTot)}</div>`:'');
+ const exchangedTo=S.inv.filter(x=>x.exchangeFor==f.n);
+ const retNote=(cancelled?'<div class="neg"><b>ANULADA</b></div>':(retTot>0?`<div class="m neg">Devuelto: ${money(retTot)}</div>`:''))+(f.exchangeFor?`<div class="m">Cambio de factura N° ${fno(f.exchangeFor)}</div>`:'')+(exchangedTo.length?`<div class="m">Cambiada por factura N° ${exchangedTo.map(x=>fno(x.n)).join(', ')}</div>`:'');
  const retBtn=isAdmin()&&!cancelled&&invoiceReturnableQty(f.n)>0?` <button class="l" onclick="openReturn(${f.n})">Devolución</button>`:'';
+ const exBtn=isAdmin()&&!cancelled&&invoiceReturnableQty(f.n)>0?` <button class="l" onclick="openExchange(${f.n})">Cambio</button>`:'';
  const cancelBtn=isAdmin()&&!cancelled&&canCancelInvoice(f.n)?` <button class="l" onclick="cancelInvoice(${f.n})">Anular factura</button>`:'';
- return `<tr${cancelled?' style="opacity:.6"':''}><td>${fno(f.n)}</td><td>${new Date(f.t).toLocaleDateString('es')}</td><td>${esc(f.cl||'—')}</td><td class="m">${f.items.map(l=>`${l.q} × ${esc(l.pn)} ${esc(l.name)}`).join('<br>')}</td><td>${payTxt}</td><td>${esc(f.vendor||'—')}</td><td class="r">${money(f.total)}${retNote}</td><td class="r"><button class="l" onclick="printInvoice(${f.n})">Factura POS</button>${retBtn}${cancelBtn}</td></tr>`}
+ return `<tr${cancelled?' style="opacity:.6"':''}><td>${fno(f.n)}</td><td>${new Date(f.t).toLocaleDateString('es')}</td><td>${esc(f.cl||'—')}</td><td class="m">${f.items.map(l=>`${l.q} × ${esc(l.pn)} ${esc(l.name)}`).join('<br>')}</td><td>${payTxt}</td><td>${esc(f.vendor||'—')}</td><td class="r">${money(f.total)}${retNote}</td><td class="r"><button class="l" onclick="printInvoice(${f.n})">Factura POS</button>${retBtn}${exBtn}${cancelBtn}</td></tr>`}
 function invoicesFiltered(){
  const txt=fcQ.text.trim().toLowerCase();
  const a=fcQ.from?new Date(fcQ.from+'T00:00:00').getTime():null;
@@ -657,27 +680,40 @@ function invoicesFiltered(){
 function salesRows(){
  const list=invoicesFiltered();
  return list.map(invoiceRow).join('')||`<tr><td colspan="8">${fcQ.text?'No hay ventas que coincidan con la búsqueda.':'No hay ventas en el rango de fechas elegido.'}</td></tr>`}
+function invoicesSummary(list){
+ let tot=0,ret=0;
+ list.forEach(f=>{
+  const retTot=returnedTotalForInvoice(f.n),cancelled=retTot>=f.total-0.01;
+  if(cancelled)return;
+  tot+=f.total;ret+=(f.pay&&f.pay.retention)||0});
+ return{tot,ret}}
+function fcSummaryHtml(){
+ const sm=invoicesSummary(invoicesFiltered());
+ return `<div><span class="m">Total facturado (periodo filtrado)</span><b class="pos">${money(sm.tot)}</b></div><div><span class="m">Retención que te practicaron tus clientes (periodo filtrado)</span><b style="color:var(--ac)">${money(sm.ret)}</b></div>`}
 function filterFc(){
  fcQ={text:$('#fcqText')?$('#fcqText').value:'',from:$('#fcqFrom')?$('#fcqFrom').value:'',to:$('#fcqTo')?$('#fcqTo').value:''};
- const b=$('#fcBody');if(b)b.innerHTML=salesRows()}
+ const b=$('#fcBody');if(b)b.innerHTML=salesRows();
+ const k=$('#fcKpis');if(k)k.innerHTML=fcSummaryHtml()}
 function fcToday(){
  fcQ.from=ld(new Date());fcQ.to=ld(new Date());
  const f=$('#fcqFrom'),t=$('#fcqTo');if(f)f.value=fcQ.from;if(t)t.value=fcQ.to;
- const b=$('#fcBody');if(b)b.innerHTML=salesRows()}
+ const b=$('#fcBody');if(b)b.innerHTML=salesRows();
+ const k=$('#fcKpis');if(k)k.innerHTML=fcSummaryHtml()}
 function fcAllDates(){
  fcQ.from='';fcQ.to='';
  const f=$('#fcqFrom'),t=$('#fcqTo');if(f)f.value='';if(t)t.value='';
- const b=$('#fcBody');if(b)b.innerHTML=salesRows()}
+ const b=$('#fcBody');if(b)b.innerHTML=salesRows();
+ const k=$('#fcKpis');if(k)k.innerHTML=fcSummaryHtml()}
 function fcView(){
  if(!S.products.length)return '<section><p>Primero agrega un producto en Inventario.</p></section>';
  const tot=C.lines.reduce((a,l)=>a+l.sub,0);
  const ls=C.lines.map((l,i)=>`<tr><td>${esc(l.name)}</td><td>${l.q} × ${esc(l.pn)}</td><td class="r">${money(l.p)}</td><td class="r">${money(l.sub)}</td><td class="r"><button class="l" onclick="delLine(${i})">Quitar</button></td></tr>`).join('')||'<tr><td colspan="5">Aún no hay productos en la factura. Agrega el primero arriba.</td></tr>';
  const vdl=S.workers.map(w=>`<option value="${esc(w.name)}">`).join('');
- return `<section><h2>Nueva factura de venta</h2><div class="g"><label>Cliente<input id="fc" value="${esc(C.cliente)}" placeholder="Nombre de quien compra"></label><label>Vendedor / trabajador que atiende<input id="fv" list="fvl" value="${esc(C.vendor)}" placeholder="Nombre del trabajador" ${isAdmin()?'':'readonly'}><datalist id="fvl">${vdl}</datalist></label></div><div class="g"><label>Producto<input id="mp" list="mpl" autocomplete="off" placeholder="Escribe el nombre del producto"><datalist id="mpl">${[...S.products].sort((a,b)=>a.name.localeCompare(b.name,'es')).map(p=>`<option value="${esc(p.name)}">`).join('')}</datalist></label><label>Presentación<select id="mpr"></select></label><label>Nivel de precio<select id="mplvl"></select></label><label>Cantidad<input id="mq" type="number" min="1" value="1"></label><label>Precio de venta<input id="mpp" type="number" min="0"></label><label>Subtotal<input id="mst" readonly placeholder="Precio × cantidad"></label></div><div id="mnew" hidden><div class="g"><label>Nombre de la presentación<input id="mnn" placeholder="Ej. Paca"></label><label>Unidades que trae<input id="mnq" type="number" min="1"></label></div></div><p id="info"></p><button class="b" onclick="addLine()">Agregar a la factura</button></section><section><h2>Productos de la factura</h2><div class="sc"><table><tr><th>Producto</th><th>Cantidad</th><th class="r">Precio</th><th class="r">Subtotal</th><th></th></tr>${ls}<tr><td colspan="3" class="r"><b>Total</b></td><td class="r"><b>${money(tot)}</b></td><td></td></tr></table></div><div class="g" style="margin-top:12px"><label>Forma de pago<select id="payM" onchange="togglePay()"><option value="cash" ${C.pm=='cash'?'selected':''}>Efectivo</option><option value="transfer" ${C.pm=='transfer'?'selected':''}>Transferencia</option><option value="credit" ${C.pm=='credit'?'selected':''}>Crédito (el cliente paga todo después)</option><option value="mix" ${C.pm=='mix'?'selected':''}>Combinado (parte efectivo, parte transferencia y/o parte a crédito)</option></select></label></div><div id="payMix" ${C.pm=='mix'?'':'hidden'}><div class="g"><label>Monto en efectivo<input id="payCash" type="number" min="0" value="${C.pc}"></label><label>Monto en transferencia<input id="payTransfer" type="number" min="0" value="${C.pt}"></label><label>Monto a crédito<input id="payCreditAmt" type="number" min="0" value="${C.pcr}"></label></div><p id="payInfo" class="m"></p></div><div id="payCreditNote" ${C.pm=='credit'?'':'hidden'}><p class="m">El cliente quedará registrado automáticamente en Deudas como deudor por el total de esta factura. Escribe su nombre arriba, en "Cliente".</p></div><div id="payTermBox" ${(C.pm=='credit'||C.pm=='mix')?'':'hidden'}><div class="g"><label>Plazo del crédito (días, opcional)<input id="payTerm" type="number" min="0" value="${C.pterm}"></label></div><p class="m" style="margin-top:4px">Si parte del pago queda a crédito, el cliente pasará a Deudas por ese monto pendiente; escribe su nombre arriba, en "Cliente".</p></div><p style="margin-top:12px"><button class="b" onclick="issue()">Emitir factura</button></p></section>`}
+ return `<section><h2>Nueva factura de venta</h2><div class="g"><label>Cliente<input id="fc" value="${esc(C.cliente)}" placeholder="Nombre de quien compra"></label><label>Vendedor / trabajador que atiende<input id="fv" list="fvl" value="${esc(C.vendor)}" placeholder="Nombre del trabajador" ${isAdmin()?'':'readonly'}><datalist id="fvl">${vdl}</datalist></label></div><div class="g"><label>Producto<input id="mp" list="mpl" autocomplete="off" placeholder="Escribe el nombre del producto"><datalist id="mpl">${[...S.products].sort((a,b)=>a.name.localeCompare(b.name,'es')).map(p=>`<option value="${esc(p.name)}">`).join('')}</datalist></label><label>Presentación<select id="mpr"></select></label><label>Nivel de precio<select id="mplvl"></select></label><label>Cantidad<input id="mq" type="number" min="1" value="1"></label><label>Precio de venta<input id="mpp" type="number" min="0"></label><label>Subtotal<input id="mst" readonly placeholder="Precio × cantidad"></label></div><div id="mnew" hidden><div class="g"><label>Nombre de la presentación<input id="mnn" placeholder="Ej. Paca"></label><label>Unidades que trae<input id="mnq" type="number" min="1"></label></div></div><p id="info"></p><button class="b" onclick="addLine()">Agregar a la factura</button></section><section><h2>Productos de la factura</h2><div class="sc"><table><tr><th>Producto</th><th>Cantidad</th><th class="r">Precio</th><th class="r">Subtotal</th><th></th></tr>${ls}<tr><td colspan="3" class="r"><b>Total</b></td><td class="r"><b>${money(tot)}</b></td><td></td></tr></table></div><div class="g" style="margin-top:12px"><label>Forma de pago<select id="payM" onchange="togglePay()"><option value="cash" ${C.pm=='cash'?'selected':''}>Efectivo</option><option value="transfer" ${C.pm=='transfer'?'selected':''}>Transferencia</option><option value="credit" ${C.pm=='credit'?'selected':''}>Crédito (el cliente paga todo después)</option><option value="mix" ${C.pm=='mix'?'selected':''}>Combinado (parte efectivo, parte transferencia y/o parte a crédito)</option></select></label><label style="flex-direction:row;align-items:center;gap:6px"><input type="checkbox" id="payRetOn" style="width:auto" onchange="toggleRetMode()" ${C.retOn?'checked':''}> Calcular retención por porcentaje</label></div><div class="g"><label id="payRetPctWrap" ${C.retOn?'':'hidden'}>% de retención<input id="payRetPct" type="number" min="0" step="0.1" placeholder="Ej. 2.5" value="${esc(String(C.retPct))}"></label><label>Retención en la fuente (opcional)<input id="payRet" type="number" min="0" value="${C.ret}" placeholder="0" ${C.retOn?'readonly':''}></label></div><p class="m" style="margin:-6px 0 10px">Si la empresa que te compra te retiene parte del pago para impuestos, actívalo arriba y escribe el porcentaje para que se calcule solo, o déjalo desactivado y escribe tú mismo el valor. Se descuenta de lo que recibes y queda guardado en la factura para que puedas sacar el total retenido del mes cuando te lo pidan.</p><div id="payMix" ${C.pm=='mix'?'':'hidden'}><div class="g"><label>Monto en efectivo<input id="payCash" type="number" min="0" value="${C.pc}"></label><label>Monto en transferencia<input id="payTransfer" type="number" min="0" value="${C.pt}"></label><label>Monto a crédito<input id="payCreditAmt" type="number" min="0" value="${C.pcr}"></label></div></div><p id="payInfo" class="m"></p><div id="payCreditNote" ${C.pm=='credit'?'':'hidden'}><p class="m">El cliente quedará registrado automáticamente en Deudas como deudor por el total de esta factura. Escribe su nombre arriba, en "Cliente".</p></div><div id="payTermBox" ${(C.pm=='credit'||C.pm=='mix')?'':'hidden'}><div class="g"><label>Plazo del crédito (días, opcional)<input id="payTerm" type="number" min="0" value="${C.pterm}"></label></div><p class="m" style="margin-top:4px">Si parte del pago queda a crédito, el cliente pasará a Deudas por ese monto pendiente; escribe su nombre arriba, en "Cliente".</p></div><p style="margin-top:12px"><button class="b" onclick="issue()">Emitir factura</button></p></section>`}
 function facView(){
  if(!S.inv.length)return '<section><h2>Facturas</h2><p class="m">Aún no has registrado ventas. Cuando emitas la primera factura desde "Ventas", aparecerá aquí.</p></section>';
  const searchBar=`<div class="g"><label>Buscar por cliente o N° de factura<input id="fcqText" value="${esc(fcQ.text)}" oninput="filterFc()" placeholder="Ej. Juan Pérez o 0007" autocomplete="off"></label><label>Desde<input type="date" id="fcqFrom" value="${fcQ.from}" onchange="filterFc()"></label><label>Hasta<input type="date" id="fcqTo" value="${fcQ.to}" onchange="filterFc()"></label></div><p style="margin:-4px 0 10px"><button class="l" onclick="fcToday()">Ver solo hoy</button> · <button class="l" onclick="fcAllDates()">Ver todas las fechas</button></p>`;
- return `<section><h2>Facturas</h2><p class="m" style="margin-bottom:10px">Por defecto ves las facturas de hoy. Cambia las fechas o busca por cliente o número para encontrar cualquier otra.</p>${searchBar}<div class="sc"><table><tr><th>N°</th><th>Fecha</th><th>Cliente</th><th>Productos</th><th>Pago</th><th>Vendedor</th><th class="r">Total</th><th></th></tr><tbody id="fcBody">${salesRows()}</tbody></table></div></section>`}
+ return `<section><h2>Facturas</h2><p class="m" style="margin-bottom:10px">Por defecto ves las facturas de hoy. Cambia las fechas o busca por cliente o número para encontrar cualquier otra.</p>${searchBar}<div class="kp" id="fcKpis">${fcSummaryHtml()}</div><div class="sc"><table><tr><th>N°</th><th>Fecha</th><th>Cliente</th><th>Productos</th><th>Pago</th><th>Vendedor</th><th class="r">Total</th><th></th></tr><tbody id="fcBody">${salesRows()}</tbody></table></div></section>`}
 function wireFc(){
  if(!$('#mp'))return;
  $('#fc').oninput=()=>{C.cliente=$('#fc').value};
@@ -722,6 +758,8 @@ function wireFc(){
  $('#payCash').oninput=()=>{C.pc=$('#payCash').value;updPayInfo()};
  $('#payTransfer').oninput=()=>{C.pt=$('#payTransfer').value;updPayInfo()};
  $('#payCreditAmt').oninput=()=>{C.pcr=$('#payCreditAmt').value;updPayInfo()};
+ $('#payRet').oninput=()=>{C.ret=$('#payRet').value;updPayInfo()};
+ $('#payRetPct').oninput=()=>{C.retPct=$('#payRetPct').value;updPayInfo()};
  $('#payTerm').oninput=()=>{C.pterm=$('#payTerm').value};
  togglePay()}
 function addLine(){
@@ -744,15 +782,17 @@ async function issue(){
  const total=C.lines.reduce((a,l)=>a+l.sub,0),cliente=C.cliente.trim(),vendor=C.vendor.trim();
  if(!cliente)return msg('Escribe el nombre del cliente que compró.');
  if(!vendor)return msg('Escribe el nombre del vendedor/trabajador que atendió la venta.');
+ const ret=Math.max(0,+($('#payRet')?$('#payRet').value:0)||0);
+ if(ret>total+0.004)return msg('La retención en la fuente no puede ser mayor al total de la factura ('+money(total)+').');
  let pay;
- if(C.pm=='cash')pay={cash:total,transfer:0,credit:0};
- else if(C.pm=='transfer')pay={cash:0,transfer:total,credit:0};
- else if(C.pm=='credit'){pay={cash:0,transfer:0,credit:total}}
+ if(C.pm=='cash')pay={cash:total-ret,transfer:0,credit:0,retention:ret};
+ else if(C.pm=='transfer')pay={cash:0,transfer:total-ret,credit:0,retention:ret};
+ else if(C.pm=='credit'){pay={cash:0,transfer:0,credit:total-ret,retention:ret}}
  else{
   const c=+$('#payCash').value||0,tr=+$('#payTransfer').value||0,cr=+$('#payCreditAmt').value||0;
-  if(Math.round((c+tr+cr)*100)!=Math.round(total*100))return msg('La suma de efectivo, transferencia y crédito debe ser igual al total de la factura ('+money(total)+').');
+  if(Math.round((c+tr+cr+ret)*100)!=Math.round(total*100))return msg('La suma de efectivo, transferencia, crédito y retención debe ser igual al total de la factura ('+money(total)+').');
   if(cr>0&&!cliente)return msg('Escribe el nombre del cliente: lo necesitas para registrar la parte a crédito en Deudas.');
-  pay={cash:c,transfer:tr,credit:cr}}
+  pay={cash:c,transfer:tr,credit:cr,retention:ret}}
  const tv=$('#payTerm')?$('#payTerm').value:'',term=tv!==''?Math.max(0,Math.floor(+tv)):null;
  const lines=C.lines.slice(),t=Date.now();
  let n,okMsg=null,invObj;
@@ -775,16 +815,18 @@ async function issue(){
     tx.set(dRef,{type:'r',name:cliente,amount:pay.credit,date:t,term,note:`Venta a crédito · Factura N° ${fno(n)}`,payments:[],f:n})}
   });
   if(pay.credit>0)okMsg=pay.credit>=total?`Factura N° ${fno(n)} emitida. "${cliente}" quedó registrado en Deudas por ${money(total)}.`:`Factura N° ${fno(n)} emitida. "${cliente}" pagó ${money(total-pay.credit)} y quedó registrado en Deudas por ${money(pay.credit)}.`;
-  C.lines=[];C.cliente='';C.vendor='';C.pm='cash';C.pc='';C.pt='';C.pcr='';C.pterm='';
+  if(ret>0.004)okMsg=(okMsg?okMsg+' ':`Factura N° ${fno(n)} emitida. `)+`Se registró una retención en la fuente de ${money(ret)}.`;
+  C.lines=[];C.cliente='';C.vendor='';C.pm='cash';C.pc='';C.pt='';C.pcr='';C.pterm='';C.ret='';C.retOn=false;C.retPct='';
   if(okMsg)msg(okMsg);
   render();printInvoice(invObj)
  }catch(e){showErr(e)}}
 function printInvoice(nOrObj){
  const f=(typeof nOrObj=='object')?nOrObj:S.inv.find(x=>x.n==nOrObj);if(!f)return;
- const pay=f.pay||{cash:f.total,transfer:0,credit:0},payLines=[];
+ const pay=f.pay||{cash:f.total,transfer:0,credit:0,retention:0},payLines=[];
  if(pay.cash)payLines.push(`Efectivo: ${money(pay.cash)}`);
  if(pay.transfer)payLines.push(`Transferencia: ${money(pay.transfer)}`);
  if(pay.credit)payLines.push(`Crédito pendiente: ${money(pay.credit)}`);
+ if(pay.retention)payLines.push(`Retención en la fuente: ${money(pay.retention)}`);
  const itemsHtml=f.items.map(l=>`<div class="pl-row"><div>${l.q} × ${esc(l.pn)}<br><span class="pos-mu">${esc(l.name)}</span></div><div class="r">${money(l.sub)}</div></div>`).join('');
  openModal(`<div class="pos-receipt"><div class="pos-c"><b>DISTRIBUIDORA EL DIAMANTE</b></div><div class="pos-c pos-mu">Factura de venta</div><div class="pos-hr"></div><div>N° Factura: <b>${fno(f.n)}</b></div><div>Fecha: ${new Date(f.t).toLocaleString('es')}</div><div>Cliente: ${esc(f.cl||'Cliente de mostrador')}</div>${f.vendor?`<div>Atendido por: ${esc(f.vendor)}</div>`:''}<div class="pos-hr"></div>${itemsHtml}<div class="pos-hr"></div><div class="pl-row"><b>TOTAL</b><b>${money(f.total)}</b></div><div class="pos-hr"></div>${payLines.map(p=>`<div>${esc(p)}</div>`).join('')}<div class="pos-hr"></div><div class="pos-c pos-mu">¡Gracias por su compra!</div></div><div id="posActions" style="display:flex;gap:10px;margin-top:14px;justify-content:center"><button class="b" onclick="window.print()">Imprimir</button><button class="l" onclick="closeModal()">Cerrar</button></div>`)}
 function printAbono(src,refId,idx){
@@ -898,6 +940,151 @@ function cancelInvoice(n){
    msg('Factura N° '+fno(n)+' anulada: el inventario y el dinero se revirtieron.');
    render()
   }catch(e){showErr(e)}})}
+
+let EX=null;
+function openExchange(n){
+ if(!isAdmin())return;
+ const f=S.inv.find(x=>x.n==n);if(!f)return;
+ const lines=saleLinesForInvoice(n).filter(l=>l.maxQ>0||l.already>0);
+ if(!lines.some(l=>l.maxQ>0))return msg('Ya se devolvió todo lo de esta factura.');
+ EX={n,lines,retQty:lines.map(()=>0),newLines:[],cl:f.cl||'',vendor:f.vendor||(session?session.name:'')};
+ renderExchange()}
+function exRetPicks(){
+ if(!EX)return[];
+ return EX.lines.map((l,i)=>({...l,q:EX.retQty[i]||0})).filter(x=>x.q>0)}
+function exRetTotal(){return exRetPicks().reduce((a,l)=>a+l.q*l.unitPrice,0)}
+function exNewTotal(){return EX?EX.newLines.reduce((a,l)=>a+l.sub,0):0}
+function exAvail(id){return EX?stock(id)-EX.newLines.filter(l=>l.pid==id).reduce((a,l)=>a+l.u,0):stock(id)}
+function exPayHtml(diff,debt,debtBal){
+ if(diff>0.004)return`<label>El cliente paga la diferencia (${money(diff)}) con<select id="xpayMethod"><option value="cash">Efectivo</option><option value="transfer">Transferencia</option><option value="credit">Crédito (queda debiendo esa diferencia)</option></select></label>`;
+ if(diff<-0.004)return`<label>Hay que devolverle ${money(-diff)} al cliente, por<select id="xpayMethod"><option value="cash">Efectivo</option><option value="transfer">Transferencia</option>${debt&&debtBal>0?`<option value="debt">Descontar de lo que debe de la factura original (saldo: ${money(debtBal)})</option>`:''}</select></label>`;
+ return''}
+function updExchangeSummary(){
+ if(!EX)return;
+ const retTot=exRetTotal(),newTot=exNewTotal(),diff=Math.round((newTot-retTot)*100)/100;
+ const debt=linkedDebtForInvoice(EX.n),debtBal=debt?debtCalc(debt).balance:0;
+ const sumEl=$('#exSummary');
+ if(sumEl)sumEl.textContent=`Total devuelto: ${money(retTot)} · Total nuevo: ${money(newTot)} · ${diff>0.004?'Cliente paga: '+money(diff):diff<-0.004?'Se le devuelve: '+money(-diff):'Cambio exacto, sin diferencia de dinero'}`;
+ const payWrap=$('#exPayWrap');
+ if(payWrap)payWrap.innerHTML=exPayHtml(diff,debt,debtBal)}
+function syncExchangeRet(i){
+ if(!EX)return;
+ const e=$('#xrq'+i);if(!e)return;
+ EX.retQty[i]=Math.max(0,Math.min(EX.lines[i].maxQ,Math.floor(+e.value||0)));
+ updExchangeSummary()}
+function wireExchangeMini(){
+ if(!$('#xmp'))return;
+ const sel=()=>findP($('#xmp').value);
+ const fill=()=>{
+  const p=sel();
+  if(!p){$('#xmpr').innerHTML='';return}
+  $('#xmpr').innerHTML=p.pres.map((x,i)=>`<option value="${i}">${esc(x.n)} (${x.q} u)</option>`).join('')};
+ const fillLvl=()=>{
+  const p=sel();
+  if(!p){$('#xmplvl').innerHTML='';return}
+  const v=$('#xmpr').value,x=p.pres[v];if(!x){$('#xmplvl').innerHTML='';return}
+  const o=[];
+  if(x.p1!=null)o.push(`<option value="1">Precio 1 (${money(x.p1)})</option>`);
+  if(x.p2!=null)o.push(`<option value="2">Precio 2 (${money(x.p2)})</option>`);
+  if(x.p3!=null)o.push(`<option value="3">Precio 3 (${money(x.p3)})</option>`);
+  o.push('<option value="manual">Otro (manual)</option>');
+  $('#xmplvl').innerHTML=o.join('')};
+ const price=()=>{
+  const p=sel();if(!p)return;
+  const v=$('#xmpr').value,x=p.pres[v];if(!x)return;
+  const lvl=$('#xmplvl').value;
+  $('#xmpp').value=lvl!='manual'&&x['p'+lvl]!=null?x['p'+lvl]:''};
+ const upd=()=>{
+  const p=sel();
+  if(!p){$('#xinfo').textContent=$('#xmp').value.trim()?'No encuentro ese producto.':'Escribe o selecciona un producto.';$('#xmst').value='';return}
+  const v=$('#xmpr').value,x=p.pres[v],q=+$('#xmq').value||0,pp=$('#xmpp').value;
+  $('#xmst').value=pp!==''?money(q*pp):'';
+  $('#xinfo').textContent=(x?`${q} × ${x.n}`:'Elige una presentación')+` · Stock disponible: ${exAvail(p.id)} u`};
+ $('#xmp').oninput=()=>{fill();fillLvl();price();upd()};
+ $('#xmpr').onchange=()=>{fillLvl();price();upd()};
+ $('#xmplvl').onchange=()=>{price();upd()};
+ $('#xmq').oninput=upd;
+ fill();fillLvl();price();upd()}
+function addExchangeLine(){
+ if(!EX)return;
+ const p=findP($('#xmp').value);
+ if(!p)return msg('Escribe o selecciona un producto válido para el cambio.');
+ const v=$('#xmpr').value,x=p.pres[v];
+ if(!x)return msg('Elige una presentación.');
+ const q=Math.floor(+$('#xmq').value),pp=$('#xmpp').value;
+ if(!(q>0))return msg('Escribe una cantidad mayor a cero.');
+ if(pp==='')return msg('Escribe el precio de venta.');
+ EX.newLines.push({pid:p.id,name:p.name,pn:x.n,q,u:q*x.q,p:+pp,sub:q*pp});
+ renderExchange()}
+function delExchangeLine(i){
+ if(!EX)return;
+ EX.newLines.splice(i,1);
+ renderExchange()}
+function renderExchange(){
+ if(!EX)return;
+ const retRows=EX.lines.map((l,i)=>`<tr><td>${esc(l.name)}<div class="m">${esc(l.pn)} · vendidas ${l.soldQ}${l.already?' · ya devueltas '+l.already:''}</div></td><td class="r">${money(l.unitPrice)}</td><td class="r"><input type="number" min="0" max="${l.maxQ}" value="${EX.retQty[i]||0}" id="xrq${i}" style="width:80px" ${l.maxQ?'':'disabled'} oninput="syncExchangeRet(${i})"></td></tr>`).join('');
+ const newRows=EX.newLines.map((l,i)=>`<tr><td>${esc(l.name)}</td><td>${l.q} × ${esc(l.pn)}</td><td class="r">${money(l.p)}</td><td class="r">${money(l.sub)}</td><td class="r"><button class="l" onclick="delExchangeLine(${i})">Quitar</button></td></tr>`).join('')||'<tr><td colspan="5">Aún no has agregado lo que se lleva a cambio.</td></tr>';
+ openModal(`<h2 style="margin-top:0">Cambio · Factura N° ${fno(EX.n)}</h2><p class="m" style="margin-bottom:10px">Registra lo que el cliente devuelve y lo que se lleva a cambio. El valor de lo devuelto se descuenta de lo nuevo; solo se paga o se devuelve la diferencia. Se crea una factura nueva para lo que se lleva, y la devolución queda sobre la factura original.</p>
+<h3>Lo que devuelve el cliente</h3>
+<div class="sc"><table><tr><th>Producto</th><th class="r">Precio</th><th class="r">Cantidad a devolver</th></tr>${retRows}</table></div>
+<h3 style="margin-top:16px">Lo que se lleva a cambio</h3>
+<div class="g"><label>Producto<input id="xmp" list="xmpl" autocomplete="off" placeholder="Escribe el nombre"><datalist id="xmpl">${[...S.products].sort((a,b)=>a.name.localeCompare(b.name,'es')).map(p=>`<option value="${esc(p.name)}">`).join('')}</datalist></label><label>Presentación<select id="xmpr"></select></label><label>Nivel de precio<select id="xmplvl"></select></label><label>Cantidad<input id="xmq" type="number" min="1" value="1"></label><label>Precio de venta<input id="xmpp" type="number" min="0"></label><label>Subtotal<input id="xmst" readonly></label></div><p id="xinfo" class="m"></p><p><button class="l" onclick="addExchangeLine()">Agregar</button></p>
+<div class="sc"><table><tr><th>Producto</th><th>Cantidad</th><th class="r">Precio</th><th class="r">Subtotal</th><th></th></tr>${newRows}</table></div>
+<p id="exSummary" style="margin-top:10px;font-weight:600"></p>
+<div id="exPayWrap" class="g" style="margin-top:4px"></div>
+<div style="display:flex;gap:10px;margin-top:12px"><button class="b" onclick="confirmExchange()">Registrar cambio</button><button class="l" onclick="closeModal()">Cancelar</button></div>`);
+ wireExchangeMini();
+ updExchangeSummary()}
+async function confirmExchange(){
+ if(!isAdmin()||!EX)return;
+ const retPicks=exRetPicks();
+ if(!retPicks.length)return msg('Marca al menos una cantidad a devolver.');
+ if(!EX.newLines.length)return msg('Agrega al menos un producto que el cliente se lleve a cambio.');
+ const n=EX.n,retTot=Math.round(exRetTotal()*100)/100,newTot=Math.round(exNewTotal()*100)/100,diff=Math.round((newTot-retTot)*100)/100;
+ const debt=linkedDebtForInvoice(n),debtBal=debt?debtCalc(debt).balance:0;
+ const payMethod=Math.abs(diff)>0.004?($('#xpayMethod')?$('#xpayMethod').value:'cash'):null;
+ if(diff<-0.004&&payMethod=='debt'&&(!debt||debtBal<(-diff)-0.01))return msg('No hay suficiente saldo pendiente en la factura original para descontar esa diferencia.');
+ const t=Date.now();
+ let n2,invObj;
+ try{
+  await runTransaction(db,async tx=>{
+   const cfgRef=doc(db,'config','main');
+   const cfgSnap=await tx.get(cfgRef);
+   const seq=(cfgSnap.exists()&&cfgSnap.data().invoiceSeq)||0;
+   n2=seq+1;
+   tx.update(cfgRef,{invoiceSeq:n2});
+   let dRef=null,dSnap=null;
+   if(diff<-0.004&&payMethod=='debt'){
+    dRef=doc(db,'debts',debt.id);dSnap=await tx.get(dRef);
+    if(!dSnap.exists())throw new Error('No encuentro la deuda de la factura original.')}
+   retPicks.forEach(l=>{
+    const mRef=doc(collection(db,'movements'));
+    tx.set(mRef,{t,pid:l.pid,nm:l.name,type:'Devolución',pn:l.pn,pq:l.q,u:Math.round(l.q*l.unitsPerPres),tot:Math.round(l.q*l.unitPrice*100)/100,f:n,ref:l.movId,reason:'Cambio · ver factura nueva N° '+fno(n2)})});
+   const invRef=doc(collection(db,'invoices'));
+   const items=EX.newLines.map(l=>({name:l.name,pn:l.pn,q:l.q,sub:l.sub}));
+   const pay={cash:0,transfer:0,credit:0};
+   if(diff>0.004){
+    if(payMethod=='transfer')pay.transfer=diff;else if(payMethod=='credit')pay.credit=diff;else pay.cash=diff}
+   invObj={n:n2,t,cl:EX.cl.trim()||'Cliente de mostrador',vendor:EX.vendor.trim()||'—',items,total:newTot,pay,exchangeFor:n};
+   tx.set(invRef,invObj);
+   EX.newLines.forEach(l=>{
+    const mRef=doc(collection(db,'movements'));
+    tx.set(mRef,{t,pid:l.pid,nm:l.name,type:'Venta',pn:l.pn,pq:l.q,u:-l.u,tot:l.sub,f:n2})});
+   if(diff>0.004&&payMethod=='credit'){
+    const ndRef=doc(collection(db,'debts'));
+    tx.set(ndRef,{type:'r',name:invObj.cl,amount:diff,date:t,term:null,note:`Diferencia de cambio · Factura N° ${fno(n2)}`,payments:[],f:n2})}
+   if(diff<-0.004){
+    if(payMethod=='debt'&&dRef){
+     tx.update(dRef,{amount:Math.max(0,dSnap.data().amount-(-diff))})
+    }else{
+     const cRef=doc(collection(db,'cash'));
+     tx.set(cRef,{t,k:'out',c:payMethod=='transfer'?'Devolución por transferencia':'Devolución en efectivo',a:-diff,f:n})}}
+  });
+  closeModal();EX=null;
+  msg(`Cambio registrado: se creó la factura N° ${fno(n2)} por lo nuevo.`+(diff>0.004?' El cliente pagó la diferencia de '+money(diff)+'.':diff<-0.004?(payMethod=='debt'?' Se descontaron '+money(-diff)+' de lo que debía de la factura original.':' Se le devolvieron '+money(-diff)+'.'):' Sin diferencia de dinero.'));
+  render();
+  if(invObj)printInvoice(invObj)
+ }catch(e){showErr(e)}}
 
 function sView(){
  const adm=isAdmin(),total=S.cash.filter(c=>c.k=='out').reduce((a,c)=>a+c.a,0);
@@ -1194,35 +1381,94 @@ async function doWipeAll(){
 
 function findP(n){n=n.trim().toLowerCase();return S.products.find(p=>p.name.toLowerCase()==n)}
 function ucost(id){const p=S.products.find(x=>x.id==id);if(p&&p.cost!=null)return p.cost;const compras=S.mov.filter(m=>m.pid==id&&m.type=='Compra'&&m.cost!=null&&m.u>0);if(!compras.length)return null;const last=compras.reduce((a,b)=>b.t>a.t?b:a);return last.cost/last.u}
+let EQ={from:'',to:''};
+function entradaFiltered(){
+ const a=EQ.from?new Date(EQ.from+'T00:00:00').getTime():null;
+ const b=EQ.to?new Date(EQ.to+'T23:59:59.999').getTime():null;
+ return [...S.mov].filter(m=>m.type=='Compra').filter(m=>{
+  if(a!=null&&m.t<a)return false;
+  if(b!=null&&m.t>b)return false;
+  return true}).sort((x,y)=>y.t-x.t)}
+function entradaRows(){
+ const list=entradaFiltered();
+ return list.map(m=>{const p=S.products.find(x=>x.id==m.pid);return `<tr><td>${new Date(m.t).toLocaleString('es',{dateStyle:'short',timeStyle:'short'})}</td><td>${esc(p?p.name:(m.nm||'(eliminado)'))}</td><td>${esc(m.prov||'—')}</td><td class="r">${m.pq} u</td><td class="r">${m.cost!=null?money(m.cost):'—'}</td><td class="r">${m.retention?money(m.retention):'—'}</td></tr>`}).join('')||'<tr><td colspan="6">No hay entradas en el rango de fechas elegido.</td></tr>'}
+function entradaSummary(list){
+ let cost=0,ret=0;
+ list.forEach(m=>{cost+=m.cost||0;ret+=m.retention||0});
+ return{cost,ret}}
+function retentionByProvider(list){
+ const by={};
+ list.forEach(m=>{if(!m.retention)return;const key=m.prov||'(sin proveedor especificado)';by[key]=(by[key]||0)+m.retention});
+ return Object.entries(by).sort((a,b)=>b[1]-a[1])}
+function enProviderRows(){
+ const list=retentionByProvider(entradaFiltered());
+ return list.map(([name,amt])=>`<tr><td>${esc(name)}</td><td class="r">${money(amt)}</td></tr>`).join('')||'<tr><td colspan="2">No se le practicó retención a ningún proveedor en el periodo filtrado.</td></tr>'}
+function enSummaryHtml(){
+ const sm=entradaSummary(entradaFiltered());
+ return `<div><span class="m">Total comprado (periodo filtrado)</span><b class="neg">${money(sm.cost)}</b></div><div><span class="m">Retención que le practicaste a proveedores (periodo filtrado)</span><b style="color:var(--ac)">${money(sm.ret)}</b></div>`}
+function filterE(){
+ EQ={from:$('#eqFrom')?$('#eqFrom').value:'',to:$('#eqTo')?$('#eqTo').value:''};
+ const b=$('#enBody');if(b)b.innerHTML=entradaRows();
+ const k=$('#enKpis');if(k)k.innerHTML=enSummaryHtml();
+ const pv=$('#enProvBody');if(pv)pv.innerHTML=enProviderRows()}
+function eThisMonth(){
+ EQ.from=ld(new Date(new Date().getFullYear(),new Date().getMonth(),1));EQ.to=ld(new Date());
+ const f=$('#eqFrom'),t=$('#eqTo');if(f)f.value=EQ.from;if(t)t.value=EQ.to;
+ const b=$('#enBody');if(b)b.innerHTML=entradaRows();
+ const k=$('#enKpis');if(k)k.innerHTML=enSummaryHtml();
+ const pv=$('#enProvBody');if(pv)pv.innerHTML=enProviderRows()}
+function eAllDates(){
+ EQ={from:'',to:''};
+ const f=$('#eqFrom'),t=$('#eqTo');if(f)f.value='';if(t)t.value='';
+ const b=$('#enBody');if(b)b.innerHTML=entradaRows();
+ const k=$('#enKpis');if(k)k.innerHTML=enSummaryHtml();
+ const pv=$('#enProvBody');if(pv)pv.innerHTML=enProviderRows()}
 function entradaHist(){
- const rows=[...S.mov].filter(m=>m.type=='Compra').reverse().map(m=>{const p=S.products.find(x=>x.id==m.pid);return `<tr><td>${new Date(m.t).toLocaleString('es',{dateStyle:'short',timeStyle:'short'})}</td><td>${esc(p?p.name:(m.nm||'(eliminado)'))}</td><td class="r">${m.pq} u</td><td class="r">${m.cost!=null?money(m.cost):'—'}</td></tr>`}).join('')||'<tr><td colspan="4">Aún no hay entradas registradas.</td></tr>';
- return `<section><h2>Historial de entradas</h2><div class="sc"><table><tr><th>Fecha</th><th>Producto</th><th class="r">Unidades</th><th class="r">Costo total</th></tr>${rows}</table></div></section>`}
+ const searchBar=`<div class="g"><label>Desde<input type="date" id="eqFrom" value="${EQ.from}" onchange="filterE()"></label><label>Hasta<input type="date" id="eqTo" value="${EQ.to}" onchange="filterE()"></label></div><p style="margin:-4px 0 10px"><button class="l" onclick="eThisMonth()">Ver este mes</button> · <button class="l" onclick="eAllDates()">Ver todas las fechas</button></p>`;
+ return `<section><h2>Historial de entradas</h2>${searchBar}<div class="kp" id="enKpis">${enSummaryHtml()}</div><h3 style="font-size:14px;margin:4px 0 8px">Retención por proveedor (periodo filtrado)</h3><div class="sc" style="margin-bottom:16px"><table><tr><th>Proveedor</th><th class="r">Retención</th></tr><tbody id="enProvBody">${enProviderRows()}</tbody></table></div><div class="sc"><table><tr><th>Fecha</th><th>Producto</th><th>Proveedor</th><th class="r">Unidades</th><th class="r">Costo total</th><th class="r">Retención</th></tr><tbody id="enBody">${entradaRows()}</tbody></table></div></section>`}
 function eView(){
  if(!isAdmin())return entradaHist();
- return `<section><h2>Registrar entrada</h2><p class="m" style="margin-bottom:10px">Registra la compra en unidades. Si el producto ya existe se suma a su stock; si no, se crea como nuevo. Opcionalmente puedes definir aquí mismo hasta 3 precios de venta por unidad (precio 1, 2 y 3), para ahorrarte el paso de ir a Inventario. Las demás presentaciones (pacas, cajas, etc.) se definen en Inventario con "Embalar".</p><div class="g"><label>Producto<input id="ep" list="el" autocomplete="off" placeholder="Escribe el nombre"><datalist id="el">${S.products.map(p=>`<option value="${esc(p.name)}">`).join('')}</datalist></label><label>Cantidad (unidades)<input id="eq" type="number" min="1" value="1"></label><label>Costo unitario<input id="ec" type="number" min="0"></label><label>Costo total<input id="et" readonly placeholder="Unidades × costo unitario"></label></div><div class="g"><label>Precio 1 (unidad)<input id="epv1" type="number" min="0" placeholder="Opcional"></label><label>Precio 2 (unidad)<input id="epv2" type="number" min="0" placeholder="Opcional"></label><label>Precio 3 (unidad)<input id="epv3" type="number" min="0" placeholder="Opcional"></label></div><div class="g"><label>¿Cómo pagaste esta compra?<select id="epay" onchange="toggleEntradaPay()"><option value="cash">De contado</option><option value="credit">A crédito</option></select></label><label id="eprovWrap" hidden>A quién le debes<input id="eprov" placeholder="Ej. Proveedor"></label><label id="eprtWrap" hidden>Plazo del crédito (días, opcional)<input id="eprt" type="number" min="0" placeholder="Ej. 30"></label></div><p id="epayNote" class="m" hidden>Esta compra quedará registrada en Deudas, en "Deudas (debes)", por el costo total de la compra. Necesitas escribir el costo unitario.</p><p id="info"></p><button class="b" id="go">Registrar entrada</button></section>
+ return `<section><h2>Registrar entrada</h2><p class="m" style="margin-bottom:10px">Registra la compra en unidades. Si el producto ya existe se suma a su stock; si no, se crea como nuevo. Opcionalmente puedes definir aquí mismo hasta 3 precios de venta por unidad (precio 1, 2 y 3), para ahorrarte el paso de ir a Inventario. Las demás presentaciones (pacas, cajas, etc.) se definen en Inventario con "Embalar".</p><div class="g"><label>Producto<input id="ep" list="el" autocomplete="off" placeholder="Escribe el nombre"><datalist id="el">${S.products.map(p=>`<option value="${esc(p.name)}">`).join('')}</datalist></label><label>Cantidad (unidades)<input id="eq" type="number" min="1" value="1"></label><label>Costo unitario<input id="ec" type="number" min="0"></label><label>Costo total<input id="et" readonly placeholder="Unidades × costo unitario"></label></div><div class="g"><label>Precio 1 (unidad)<input id="epv1" type="number" min="0" placeholder="Opcional"></label><label>Precio 2 (unidad)<input id="epv2" type="number" min="0" placeholder="Opcional"></label><label>Precio 3 (unidad)<input id="epv3" type="number" min="0" placeholder="Opcional"></label></div><div class="g"><label>Proveedor (opcional, pero necesario si es a crédito o si aplicas retención)<input id="eprov" list="eprovl" placeholder="Ej. Distribuidora Nacional SAS"><datalist id="eprovl">${[...new Set(S.mov.filter(m=>m.type=='Compra'&&m.prov).map(m=>m.prov))].map(n=>`<option value="${esc(n)}">`).join('')}</datalist></label><label>¿Cómo pagaste esta compra?<select id="epay" onchange="toggleEntradaPay()"><option value="cash">De contado</option><option value="credit">A crédito</option></select></label><label id="eprtWrap" hidden>Plazo del crédito (días, opcional)<input id="eprt" type="number" min="0" placeholder="Ej. 30"></label></div><p id="epayNote" class="m" hidden>Esta compra quedará registrada en Deudas, en "Deudas (debes)", por el costo total de la compra. Necesitas escribir el costo unitario y el proveedor.</p><div class="g"><label style="flex-direction:row;align-items:center;gap:6px"><input type="checkbox" id="eretOn" style="width:auto" onchange="toggleEretMode()"> Calcular la retención por porcentaje</label></div><div class="g"><label id="eretPctWrap" hidden>% de retención<input id="eretPct" type="number" min="0" step="0.1" placeholder="Ej. 2.5"></label><label>Valor de la retención (opcional)<input id="eret" type="number" min="0" placeholder="0"></label></div><p class="m" style="margin:-6px 0 10px">Si en esta compra debías practicarle retención en la fuente al proveedor, actívala arriba y escribe el porcentaje para que el valor se calcule solo, o déjala desactivada y escribe tú mismo el valor exacto que viene en la factura. Se descuenta de lo que realmente le pagas, o de la deuda si es a crédito, y queda guardado para que puedas sacar el total retenido del mes.</p><p id="info"></p><button class="b" id="go">Registrar entrada</button></section>
  ${entradaHist()}`}
 function toggleEntradaPay(){
  const credit=$('#epay')&&$('#epay').value=='credit';
- if($('#eprovWrap'))$('#eprovWrap').hidden=!credit;
  if($('#eprtWrap'))$('#eprtWrap').hidden=!credit;
  if($('#epayNote'))$('#epayNote').hidden=!credit}
+function toggleEretMode(){
+ const on=$('#eretOn')&&$('#eretOn').checked;
+ if($('#eretPctWrap'))$('#eretPctWrap').hidden=!on;
+ if($('#eret'))$('#eret').readOnly=on;
+ if(typeof window.updEntradaInfo=='function')window.updEntradaInfo()}
 function wireE(){
  if(!isAdmin()||!$('#go'))return;
  const upd=()=>{const name=$('#ep').value.trim(),p=findP(name),q=Math.floor(+$('#eq').value)||0,c=$('#ec').value;
+  const totalCost=q>0&&c!==''?q*+c:null;
+  $('#et').value=totalCost!=null?money(totalCost):'';
+  if($('#eretOn')&&$('#eretOn').checked){
+   const pct=+($('#eretPct')?$('#eretPct').value:0)||0;
+   if($('#eret'))$('#eret').value=(totalCost!=null&&pct>0)?Math.round(totalCost*pct/100):''}
+  const rt=$('#eret')?(+$('#eret').value||0):0;
   let t=!name?'Escribe el nombre. Si el producto ya existe, se suma al stock; si no, se crea como nuevo.':p?`Se sumará a «${p.name}»: stock ${stock(p.id)} → ${stock(p.id)+q} u`:'Producto nuevo: se creará en el inventario.';
-  $('#et').value=q>0&&c!==''?money(q*c):'';$('#info').textContent=t};
- ['#ep','#eq','#ec'].forEach(k=>{$(k).oninput=upd});upd();
+  if(rt>0.004&&totalCost!=null)t+=` · Pagarás ${money(Math.max(0,totalCost-rt))} después de descontar ${money(rt)} de retención.`;
+  $('#info').textContent=t};
+ window.updEntradaInfo=upd;
+ ['#ep','#eq','#ec','#eret','#eretPct'].forEach(k=>{if($(k))$(k).oninput=upd});upd();
  toggleEntradaPay();
  $('#go').onclick=async()=>{
   if(!isAdmin())return;
   const name=$('#ep').value.trim(),q=Math.floor(+$('#eq').value),costRaw=$('#ec').value,
    priceRaw1=$('#epv1').value,priceRaw2=$('#epv2').value,priceRaw3=$('#epv3').value,
-   payType=$('#epay').value,provName=$('#eprov').value.trim(),provTerm=$('#eprt').value;
+   payType=$('#epay').value,provName=$('#eprov').value.trim(),provTerm=$('#eprt').value,retRaw=$('#eret')?$('#eret').value:'';
   if(!name)return msg('Escribe el nombre del producto.');
   if(!(q>0))return msg('Escribe una cantidad mayor a cero.');
   if(payType=='credit'){
    if(costRaw==='')return msg('Escribe el costo unitario: lo necesitas para registrar la deuda por el costo total de la compra.');
    if(!provName)return msg('Escribe a quién le debes esta compra.')}
+  const ret=Math.max(0,+retRaw||0);
+  if(ret>0.004&&costRaw==='')return msg('Para registrar una retención en la fuente necesitas escribir el costo unitario de la compra.');
+  if(ret>0.004&&!provName)return msg('Escribe el nombre del proveedor: lo necesitas para poder reportar la retención por proveedor.');
+  const costCheck=costRaw!==''?q*+costRaw:null;
+  if(ret>0.004&&costCheck!=null&&ret>costCheck+0.004)return msg('La retención en la fuente no puede ser mayor al costo total de la compra ('+money(costCheck)+').');
   try{
    let p=findP(name);const nuevo=!p;let pid;
    const priceVal1=priceRaw1!==''?Math.max(0,+priceRaw1):null;
@@ -1239,12 +1485,14 @@ function wireE(){
    const cost=costRaw!==''?q*+costRaw:null;
    if(cost!==null){
     await updateDoc(doc(db,'products',pid),{cost:cost/q})}
-   await addDoc(collection(db,'movements'),{t:Date.now(),pid,nm:name,type:'Compra',pn:'Unidad',pq:q,u:q,tot:null,cost});
+   await addDoc(collection(db,'movements'),{t:Date.now(),pid,nm:name,type:'Compra',pn:'Unidad',pq:q,u:q,tot:null,cost,retention:cost!=null?ret:0,prov:provName||null});
    let debtMsg='';
    if(payType=='credit'&&cost!=null){
-    await addDoc(collection(db,'debts'),{type:'p',name:provName,amount:cost,date:Date.now(),term:provTerm!==''?Math.max(0,Math.floor(+provTerm)):null,note:`Compra a crédito: ${name} (${q} u)`,payments:[]});
-    debtMsg=' Se registró la deuda con '+provName+' por '+money(cost)+'.'}
-   msg((nuevo?'Producto nuevo creado y entrada registrada.':'Entrada registrada: el stock se actualizó.')+debtMsg);render()
+    const owed=Math.max(0,cost-ret);
+    await addDoc(collection(db,'debts'),{type:'p',name:provName,amount:owed,date:Date.now(),term:provTerm!==''?Math.max(0,Math.floor(+provTerm)):null,note:`Compra a crédito: ${name} (${q} u)`+(ret>0.004?` · Retención: ${money(ret)}`:''),payments:[]});
+    debtMsg=' Se registró la deuda con '+provName+' por '+money(owed)+'.'}
+   const retMsg=(cost!=null&&ret>0.004)?' Se registró una retención en la fuente de '+money(ret)+'.':'';
+   msg((nuevo?'Producto nuevo creado y entrada registrada.':'Entrada registrada: el stock se actualizó.')+debtMsg+retMsg);render()
   }catch(e){showErr(e)}}}
 
 function openModal(html){$('#mdBox').innerHTML=html;$('#mdBg').hidden=false}
@@ -1389,7 +1637,7 @@ function render(){
 document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{tab=b.dataset.t;render()});
 $('#mdBg').onclick=e=>{if(e.target.id=='mdBg')closeModal()};
 document.addEventListener('keydown',e=>{if(e.key=='Escape')closeModal()});
-Object.assign(window,{backup,restore,wipeAll,doWipeAll,downloadFinancialsXlsx,editWorker,delWorker,addWorker,saveWorker,closeModal,adjustCost,confirmAdjustCost,pickP,delP,delPres,setUnitP,setPresPrice,embalar,editUser,delUser,addUser,saveUser,filterInv,filterDebtsR,filterDebtsP,addDebt,addAbono,delDebt,delCash,addCash,delLine,addLine,issue,printInvoice,togglePay,updPriceProduct,delPayroll,logout,changeMyPw,doChangeMyPw,resetVendorPw,doResetVendorPw,openReturn,fillAllReturn,updRetTotal,confirmReturn,filterFc,fcToday,fcAllDates,filterK,clearKFilter,cancelInvoice,printPayroll,toggleEntradaPay,printAbono,addLoan,addLoanAbono,delLoan,newProduct,confirmNewProduct,renameProduct,confirmRenameProduct,editPres,confirmEditPres});
+Object.assign(window,{backup,restore,wipeAll,doWipeAll,downloadFinancialsXlsx,editWorker,delWorker,addWorker,saveWorker,closeModal,adjustCost,confirmAdjustCost,pickP,delP,delPres,setUnitP,setPresPrice,embalar,editUser,delUser,addUser,saveUser,filterInv,filterDebtsR,filterDebtsP,addDebt,addAbono,delDebt,delCash,addCash,delLine,addLine,issue,printInvoice,togglePay,updPriceProduct,delPayroll,logout,changeMyPw,doChangeMyPw,resetVendorPw,doResetVendorPw,openReturn,fillAllReturn,updRetTotal,confirmReturn,filterFc,fcToday,fcAllDates,filterK,clearKFilter,cancelInvoice,printPayroll,toggleEntradaPay,printAbono,addLoan,addLoanAbono,delLoan,newProduct,confirmNewProduct,renameProduct,confirmRenameProduct,editPres,confirmEditPres,openExchange,syncExchangeRet,addExchangeLine,delExchangeLine,confirmExchange,filterE,eThisMonth,eAllDates,toggleEretMode,toggleRetMode});
 render();
 </script>
 </body>
